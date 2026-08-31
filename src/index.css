@@ -1,0 +1,168 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Archivo", "IBM Plex Sans", ui-sans-serif, sans-serif;
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", monospace;
+
+  --color-paper: #eef2ef;
+  --color-card: #fbfcfb;
+  --color-ink: #14231e;
+  --color-ink-soft: #48605a;
+  --color-ink-faint: #7f918a;
+  --color-line: #d8e1db;
+  --color-line-soft: #e5ebe7;
+
+  --color-pine-950: #06201a;
+  --color-pine-900: #0a2a21;
+  --color-pine-800: #0f382c;
+  --color-pine-700: #175040;
+  --color-pine-600: #1f6350;
+  --color-pine-100: #d7e7df;
+
+  --color-brand-700: #0b6b51;
+  --color-brand-600: #0e8262;
+  --color-brand-500: #179973;
+  --color-brand-400: #3cb98d;
+  --color-brand-200: #b9e4d2;
+  --color-brand-100: #d9efe5;
+  --color-brand-50: #ecf6f0;
+
+  --color-warn-700: #92560b;
+  --color-warn-600: #b4690e;
+  --color-warn-100: #f7e8cd;
+  --color-warn-50: #fbf3e2;
+
+  --color-danger-700: #a03a24;
+  --color-danger-600: #be4b32;
+  --color-danger-100: #f6ddd4;
+  --color-danger-50: #faece6;
+
+  --color-steel-700: #2b5478;
+  --color-steel-600: #38688f;
+  --color-steel-100: #dde9f2;
+  --color-steel-50: #edf3f8;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- signature textures ---------- */
+.plus-grid {
+  background-image: radial-gradient(rgba(14, 130, 98, 0.09) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+.pine-tex {
+  background-image:
+    radial-gradient(ellipse 80% 55% at 18% -5%, rgba(62, 213, 152, 0.14), transparent 60%),
+    radial-gradient(ellipse 60% 45% at 95% 105%, rgba(62, 213, 152, 0.08), transparent 60%),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.022) 0px, rgba(255, 255, 255, 0.022) 1px, transparent 1px, transparent 9px);
+}
+
+.paper-tex {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.65), rgba(255, 255, 255, 0) 220px);
+}
+
+/* ---------- type helpers ---------- */
+.micro {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* ---------- motion ---------- */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.fade-up { animation: fadeUp 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.96) translateY(6px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+.pop-in { animation: popIn 0.22s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+@keyframes slideRight {
+  from { opacity: 0; transform: translateX(28px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.slide-right { animation: slideRight 0.28s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+@keyframes drawerIn {
+  from { opacity: 0.4; transform: translateX(60px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.drawer-in { animation: drawerIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+@keyframes ecgRun {
+  from { stroke-dashoffset: 1400; }
+  to { stroke-dashoffset: 0; }
+}
+.ecg-run {
+  stroke-dasharray: 190 1210;
+  animation: ecgRun 4.2s linear infinite;
+}
+
+@keyframes ripple {
+  0% { box-shadow: 0 0 0 0 rgba(190, 75, 50, 0.45); }
+  70% { box-shadow: 0 0 0 7px rgba(190, 75, 50, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(190, 75, 50, 0); }
+}
+.pulse-danger { animation: ripple 1.6s ease-out infinite; }
+
+@keyframes rippleGreen {
+  0% { box-shadow: 0 0 0 0 rgba(23, 153, 115, 0.4); }
+  70% { box-shadow: 0 0 0 7px rgba(23, 153, 115, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(23, 153, 115, 0); }
+}
+.pulse-live { animation: rippleGreen 2s ease-out infinite; }
+
+@keyframes growBar {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+.grow-bar { transform-origin: bottom; animation: growBar 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+@keyframes drawLine {
+  from { stroke-dashoffset: 600; }
+  to { stroke-dashoffset: 0; }
+}
+.draw-line { stroke-dasharray: 600; animation: drawLine 1.4s ease-out both; }
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(14px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.toast-in { animation: toastIn 0.25s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* ---------- slim scrollbars ---------- */
+.scroll-slim::-webkit-scrollbar { width: 8px; height: 8px; }
+.scroll-slim::-webkit-scrollbar-thumb { background: #c3d0c9; border-radius: 8px; }
+.scroll-slim::-webkit-scrollbar-thumb:hover { background: #a8bcb2; }
+.scroll-slim::-webkit-scrollbar-track { background: transparent; }
+.scroll-dark::-webkit-scrollbar { width: 8px; }
+.scroll-dark::-webkit-scrollbar-thumb { background: #1f6350; border-radius: 8px; }
+.scroll-dark::-webkit-scrollbar-track { background: transparent; }
+
+/* ---------- ticket perforation for queue tokens ---------- */
+.token-notch {
+  -webkit-mask-image: radial-gradient(circle 5px at 0 50%, transparent 98%, #000 100%),
+    radial-gradient(circle 5px at 100% 50%, transparent 98%, #000 100%);
+  -webkit-mask-composite: source-in;
+  mask-image: radial-gradient(circle 5px at 0 50%, transparent 98%, #000 100%),
+    radial-gradient(circle 5px at 100% 50%, transparent 98%, #000 100%);
+  mask-composite: intersect;
+}
