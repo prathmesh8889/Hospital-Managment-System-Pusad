@@ -4,7 +4,7 @@ import { useApp } from "../lib/store";
 import { MODULES, MODULE_ROLES, ROLE_MAP, BRANCHES, timeAgo, fullName } from "../lib/data";
 import type { ModuleId } from "../lib/data";
 import { I, PulseMark } from "./icons";
-import { Avatar, ECG, Pill } from "./ui";
+import { Avatar, Btn, ECG, Modal, Pill, TextInput, Field } from "./ui";
 
 function Clock() {
   const [now, setNow] = useState(new Date());
@@ -48,13 +48,13 @@ function GlobalSearch() {
   }, [q, s.patients, s.doctors, s.medicines]);
 
   return (
-    <div ref={boxRef} className="relative flex-1 max-w-md">
+    <div ref={boxRef} className="relative flex-1 min-w-0 max-w-md">
       <I name="search" className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint" />
       <input
         value={q}
         onChange={(e) => { setQ(e.target.value); setOpen(true); }}
         onFocus={() => setOpen(true)}
-        placeholder="Search patients, doctors, medicines…  (PT-1041)"
+        placeholder="Search patients, doctors, medicines…"
         className="w-full bg-white border border-line rounded-lg pl-9 pr-3 py-2 text-[13px] outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 transition-shadow placeholder:text-ink-faint/70"
       />
       {open && results && (
@@ -67,8 +67,8 @@ function GlobalSearch() {
                 <button key={p.id} onClick={() => { if (s.session?.role === "patient") go("portal"); else go("patients", p.id); setOpen(false); setQ(""); }}
                   className="w-full flex items-center gap-3 px-4 py-2 hover:bg-brand-50 transition-colors text-left">
                   <Avatar name={fullName(p)} color={p.color} size={26} />
-                  <span className="text-[13px] font-medium text-ink">{fullName(p)}</span>
-                  <span className="font-mono text-[11px] text-ink-faint">{p.code}</span>
+                  <span className="text-[13px] font-medium text-ink truncate">{fullName(p)}</span>
+                  <span className="font-mono text-[11px] text-ink-faint hidden sm:inline">{p.code}</span>
                   {p.allergies.length > 0 && <Pill tone="red" className="ml-auto">⚠ {p.allergies[0]}</Pill>}
                 </button>
               ))}
@@ -80,8 +80,8 @@ function GlobalSearch() {
               {results.doctors.map((d) => (
                 <div key={d.id} className="flex items-center gap-3 px-4 py-2">
                   <Avatar name={d.name} color={d.color} size={26} />
-                  <span className="text-[13px] font-medium text-ink">{d.name}</span>
-                  <span className="text-[11px] text-ink-faint">{d.specialization}</span>
+                  <span className="text-[13px] font-medium text-ink truncate">{d.name}</span>
+                  <span className="text-[11px] text-ink-faint hidden sm:inline">{d.specialization}</span>
                   <Pill tone={d.status === "available" ? "green" : "amber"} className="ml-auto">{d.status}</Pill>
                 </div>
               ))}
@@ -93,8 +93,8 @@ function GlobalSearch() {
               {results.meds.map((m) => (
                 <div key={m.id} className="flex items-center gap-3 px-4 py-2">
                   <I name="pill" className="w-4 h-4 text-brand-600" />
-                  <span className="text-[13px] font-medium text-ink">{m.name}</span>
-                  <span className="text-[11px] text-ink-faint">{m.category}</span>
+                  <span className="text-[13px] font-medium text-ink truncate">{m.name}</span>
+                  <span className="text-[11px] text-ink-faint hidden sm:inline">{m.category}</span>
                   <span className={`ml-auto font-mono text-[11px] ${m.stock <= m.reorder ? "text-danger-600 font-semibold" : "text-ink-faint"}`}>{m.stock} u</span>
                 </div>
               ))}
@@ -138,7 +138,7 @@ function Notifications() {
         )}
       </button>
       {open && (
-        <div className="pop-in absolute right-0 top-full mt-2 w-[340px] bg-card border border-line rounded-xl shadow-xl z-40 overflow-hidden">
+        <div className="pop-in absolute right-0 top-full mt-2 w-[min(340px,calc(100vw-2rem))] bg-card border border-line rounded-xl shadow-xl z-40 overflow-hidden">
           <header className="flex items-center justify-between px-4 py-2.5 border-b border-line-soft">
             <p className="font-display font-bold text-sm text-ink">Notifications</p>
             {unread > 0 && (
@@ -168,12 +168,88 @@ function Notifications() {
   );
 }
 
+function RenameModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { s, setHospitalName } = useApp();
+  const [name, setName] = useState(s.hospitalName);
+  useEffect(() => { if (open) setName(s.hospitalName); }, [open, s.hospitalName]);
+  return (
+    <Modal open={open} onClose={onClose} title="Facility identity" sub="Shown on the console, receipts and patient portal"
+      footer={<>
+        <Btn variant="outline" onClick={onClose}>Cancel</Btn>
+        <Btn icon="check" onClick={() => { setHospitalName(name); onClose(); }}>Save name</Btn>
+      </>}>
+      <Field label="Hospital / facility name">
+        <TextInput value={name} onChange={(e) => setName(e.target.value)} maxLength={48} autoFocus />
+      </Field>
+      <p className="text-[11.5px] text-ink-faint mt-2.5 flex items-center gap-1.5">
+        <I name="shield" className="w-3.5 h-3.5 shrink-0" /> The change is written to the audit trail with your user ID.
+      </p>
+    </Modal>
+  );
+}
+
 export function Shell({ children }: { children: ReactNode }) {
   const { s, go, signOut, setBranch, toasts, dismiss, reset } = useApp();
   const role = s.session?.role ?? "admin";
   const meta = ROLE_MAP[role];
   const visible = MODULES.filter((m) => MODULE_ROLES[m.id].includes(role));
   const groups = [...new Set(visible.map((m) => m.group))];
+  const [navOpen, setNavOpen] = useState(false);
+  const [renameOpen, setRenameOpen] = useState(false);
+  const canRename = role === "super" || role === "admin" || role === "doctor";
+
+  useEffect(() => { setNavOpen(false); }, [s.view]);
+
+  const nav = (
+    <nav className="flex-1 overflow-y-auto scroll-dark py-3 px-2.5">
+      {groups.map((g) => (
+        <div key={g} className="mb-3">
+          <p className="micro text-brand-400/50 px-2.5 mb-1">{g}</p>
+          {visible.filter((m) => m.group === g).map((m) => {
+            const active = s.view === m.id;
+            return (
+              <button
+                key={m.id}
+                onClick={() => go(m.id as ModuleId)}
+                className={`relative w-full flex items-center gap-2.5 px-2.5 py-[7px] rounded-lg text-[13px] font-medium transition-all duration-150 mb-0.5 ${
+                  active ? "bg-white/10 text-white" : "text-pine-100/75 hover:text-white hover:bg-white/5"
+                }`}
+              >
+                {active && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-brand-400" />}
+                <I name={m.icon} className={`w-[17px] h-[17px] ${active ? "text-brand-400" : ""}`} />
+                <span className="truncate">{m.label}</span>
+                {m.id === "pharmacy" && s.prescriptions.filter((r) => r.status === "sent").length > 0 && role !== "patient" && (
+                  <span className="ml-auto font-mono text-[10px] bg-warn-600 text-white px-1.5 py-px rounded-full">
+                    {s.prescriptions.filter((r) => r.status === "sent").length}
+                  </span>
+                )}
+                {m.id === "command" && (
+                  <span className="ml-auto micro text-brand-400/70 hidden xl:inline">live</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      ))}
+    </nav>
+  );
+
+  const brand = (
+    <div className="flex items-center gap-2.5 px-4 h-16 border-b border-white/8 shrink-0">
+      <PulseMark className="w-8 h-8 shrink-0" />
+      <div className="leading-none min-w-0">
+        <p className="font-display font-extrabold text-[14px] text-white tracking-tight truncate">AURELIA<span className="text-brand-400"> HMS</span></p>
+        <div className="flex items-center gap-1 mt-1">
+          <p className="micro text-brand-400/70 truncate" title={s.hospitalName}>{s.hospitalName}</p>
+          {canRename && (
+            <button onClick={() => setRenameOpen(true)} className="text-brand-400/60 hover:text-brand-400 transition-colors shrink-0" title="Edit facility name" aria-label="Edit facility name">
+              <I name="edit" className="w-3 h-3" />
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 
   const toastMeta = {
     success: { cls: "border-l-brand-500", icon: "check", iconCls: "bg-brand-100 text-brand-700" },
@@ -184,50 +260,15 @@ export function Shell({ children }: { children: ReactNode }) {
 
   return (
     <div className="h-full flex overflow-hidden">
-      {/* ---------- sidebar ---------- */}
-      <aside className="w-[228px] shrink-0 bg-pine-900 pine-tex text-pine-100 flex flex-col">
-        <div className="flex items-center gap-2.5 px-4 h-16 border-b border-white/8">
-          <PulseMark className="w-8 h-8" />
-          <div className="leading-none">
-            <p className="font-display font-extrabold text-[15px] text-white tracking-tight">AURELIA<span className="text-brand-400"> HMS</span></p>
-            <p className="micro text-brand-400/70 mt-1">ops console</p>
-          </div>
-        </div>
-
-        <nav className="flex-1 overflow-y-auto scroll-dark py-3 px-2.5">
-          {groups.map((g) => (
-            <div key={g} className="mb-3">
-              <p className="micro text-brand-400/50 px-2.5 mb-1">{g}</p>
-              {visible.filter((m) => m.group === g).map((m) => {
-                const active = s.view === m.id;
-                return (
-                  <button
-                    key={m.id}
-                    onClick={() => go(m.id as ModuleId)}
-                    className={`relative w-full flex items-center gap-2.5 px-2.5 py-[7px] rounded-lg text-[13px] font-medium transition-all duration-150 mb-0.5 ${
-                      active ? "bg-white/10 text-white" : "text-pine-100/75 hover:text-white hover:bg-white/5"
-                    }`}
-                  >
-                    {active && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-brand-400" />}
-                    <I name={m.icon} className={`w-[17px] h-[17px] ${active ? "text-brand-400" : ""}`} />
-                    {m.label}
-                    {m.id === "pharmacy" && s.prescriptions.filter((r) => r.status === "sent").length > 0 && role !== "patient" && (
-                      <span className="ml-auto font-mono text-[10px] bg-warn-600 text-white px-1.5 py-px rounded-full">
-                        {s.prescriptions.filter((r) => r.status === "sent").length}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          ))}
-        </nav>
-
-        <div className="px-3 pb-3">
+      {/* ---------- sidebar (desktop) ---------- */}
+      <aside className="hidden lg:flex w-[228px] shrink-0 bg-pine-900 pine-tex text-pine-100 flex-col">
+        {brand}
+        {nav}
+        <div className="px-3 pb-3 shrink-0">
           <div className="rounded-lg bg-white/5 border border-white/8 px-3 py-2.5">
             <div className="flex items-center gap-2 mb-1.5">
               <span className="w-2 h-2 rounded-full bg-brand-400 pulse-live" />
-              <p className="micro text-brand-400">Live · {BRANCHES.find((b) => b.id === s.branchId)?.name}</p>
+              <p className="micro text-brand-400 truncate">Live · {BRANCHES.find((b) => b.id === s.branchId)?.name}</p>
             </div>
             <ECG className="w-full h-7" />
           </div>
@@ -237,9 +278,34 @@ export function Shell({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
+      {/* ---------- sidebar (mobile drawer) ---------- */}
+      {navOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div className="absolute inset-0 bg-pine-950/60 backdrop-blur-[2px]" onClick={() => setNavOpen(false)} />
+          <aside className="drawer-in absolute left-0 top-0 bottom-0 w-[260px] bg-pine-900 pine-tex text-pine-100 flex flex-col shadow-2xl">
+            <div className="flex items-center justify-between pr-2">
+              {brand}
+              <button onClick={() => setNavOpen(false)} className="w-9 h-9 grid place-items-center rounded-lg text-pine-100/70 hover:text-white hover:bg-white/10 transition-colors" aria-label="Close menu">
+                <I name="x" className="w-4 h-4" />
+              </button>
+            </div>
+            {nav}
+            <div className="px-3 pb-3 shrink-0">
+              <button onClick={reset} className="w-full flex items-center justify-center gap-1.5 text-[11px] text-pine-100/50 hover:text-pine-100 transition-colors py-1.5 border border-white/10 rounded-lg">
+                <I name="refresh" className="w-3 h-3" /> Reset demo data
+              </button>
+            </div>
+          </aside>
+        </div>
+      )}
+
       {/* ---------- main ---------- */}
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-16 shrink-0 bg-card/90 backdrop-blur border-b border-line flex items-center gap-3 px-4 lg:px-6">
+        <header className="h-16 shrink-0 bg-card/90 backdrop-blur border-b border-line flex items-center gap-2.5 sm:gap-3 px-3 sm:px-4 lg:px-6">
+          <button onClick={() => setNavOpen(true)} className="lg:hidden w-9 h-9 grid place-items-center rounded-lg border border-line bg-white text-ink-soft hover:text-brand-700 hover:border-brand-500 transition-colors shrink-0" aria-label="Open menu">
+            <I name="menu" className="w-[18px] h-[18px]" />
+          </button>
+
           <select
             value={s.branchId}
             onChange={(e) => setBranch(e.target.value)}
@@ -253,14 +319,14 @@ export function Shell({ children }: { children: ReactNode }) {
 
           <GlobalSearch />
 
-          <div className="ml-auto flex items-center gap-3">
+          <div className="ml-auto flex items-center gap-2 sm:gap-3 shrink-0">
             <Clock />
             <Notifications />
             <div className="h-8 w-px bg-line hidden sm:block" />
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2 sm:gap-2.5">
               <Avatar name={meta.name} color={meta.color} size={34} />
               <div className="hidden sm:block leading-tight">
-                <p className="text-[13px] font-semibold text-ink">{meta.name}</p>
+                <p className="text-[13px] font-semibold text-ink max-w-[140px] truncate">{meta.name}</p>
                 <p className="micro text-brand-700">{meta.label}</p>
               </div>
               <button onClick={signOut} className="w-8 h-8 grid place-items-center rounded-lg text-ink-faint hover:text-danger-600 hover:bg-danger-50 transition-colors" title="Sign out" aria-label="Sign out">
@@ -271,12 +337,14 @@ export function Shell({ children }: { children: ReactNode }) {
         </header>
 
         <main className="flex-1 overflow-y-auto scroll-slim paper-tex">
-          <div className="max-w-[1240px] mx-auto px-4 lg:px-6 py-5">{children}</div>
+          <div className="max-w-[1240px] mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-5">{children}</div>
         </main>
       </div>
 
+      <RenameModal open={renameOpen} onClose={() => setRenameOpen(false)} />
+
       {/* ---------- toasts ---------- */}
-      <div className="fixed bottom-4 right-4 z-[60] flex flex-col gap-2 w-[330px]">
+      <div className="fixed bottom-3 right-3 sm:bottom-4 sm:right-4 z-[60] flex flex-col gap-2 w-[calc(100vw-1.5rem)] max-w-[330px]">
         {toasts.map((t) => {
           const m = toastMeta[t.kind];
           return (

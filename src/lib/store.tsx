@@ -14,6 +14,7 @@ export interface AppState extends SeedData {
   focusPatientId: string | null;
   bookPatientId: string | null;
   branchId: string;
+  hospitalName: string;
 }
 
 export interface Toast { id: number; kind: "success" | "error" | "info" | "warning"; title: string; desc?: string; }
@@ -29,6 +30,7 @@ interface AppCtx {
   go: (view: ModuleId, focusPatientId?: string | null) => void;
   setBookPatient: (id: string | null) => void;
   setBranch: (id: string) => void;
+  setHospitalName: (name: string) => void;
   markRead: (id: string) => void;
   markAllRead: () => void;
   registerPatient: (p: Omit<AppState["patients"][number], "id" | "code" | "registeredAt" | "color">) => string;
@@ -64,6 +66,8 @@ const Ctx = createContext<AppCtx | null>(null);
 
 const STORAGE_KEY = "aurelia-hms-v3";
 
+const DEFAULT_HOSPITAL = "St. Aurelia Medical Center";
+
 const freshState = (): AppState => ({
   ...makeSeed(),
   session: null,
@@ -71,6 +75,7 @@ const freshState = (): AppState => ({
   focusPatientId: null,
   bookPatientId: null,
   branchId: "main",
+  hospitalName: DEFAULT_HOSPITAL,
 });
 
 const loadState = (): AppState => {
@@ -143,6 +148,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const setBookPatient = useCallback((id: string | null) => setS((prev) => ({ ...prev, bookPatientId: id })), []);
   const setBranch = useCallback((id: string) => setS((prev) => ({ ...prev, branchId: id })), []);
+
+  const setHospitalName = useCallback(
+    (name: string) => {
+      const clean = name.trim();
+      if (!clean) { toast("error", "Name required", "The facility name cannot be empty."); return; }
+      setS((prev) =>
+        withMeta({ ...prev, hospitalName: clean }, "Renamed facility", `“${prev.hospitalName}” → “${clean}”`)
+      );
+      toast("success", "Facility name updated", `Now displaying “${clean}” across the console.`);
+    },
+    [withMeta, toast]
+  );
   const markRead = useCallback((id: string) => setS((prev) => ({ ...prev, notifications: prev.notifications.map((n) => (n.id === id ? { ...n, read: true } : n)) })), []);
   const markAllRead = useCallback(() => setS((prev) => ({ ...prev, notifications: prev.notifications.map((n) => ({ ...n, read: true })) })), []);
 
@@ -658,13 +675,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo<AppCtx>(() => ({
-    s, toasts, dismiss, toast, signIn, signOut, reset, go, setBookPatient, setBranch,
+    s, toasts, dismiss, toast, signIn, signOut, reset, go, setBookPatient, setBranch, setHospitalName,
     markRead, markAllRead, registerPatient, bookAppointment, cancelAppointment, checkIn,
     startConsult, saveVitals, updateConsult, completeConsult, sendPrescription, dispense,
     orderLab, advanceLab, saveLabResults, verifyLab, setImaging, createAdmission, assignBed,
     discharge, setBedStatus, addProgressNote, recordPayment, submitClaim, createBill,
     restock, adjustInventory, createPO, receivePO,
-  }), [s, toasts, dismiss, toast, signIn, signOut, reset, go, setBookPatient, setBranch, markRead, markAllRead,
+  }), [s, toasts, dismiss, toast, signIn, signOut, reset, go, setBookPatient, setBranch, setHospitalName, markRead, markAllRead,
     registerPatient, bookAppointment, cancelAppointment, checkIn, startConsult, saveVitals, updateConsult,
     completeConsult, sendPrescription, dispense, orderLab, advanceLab, saveLabResults, verifyLab, setImaging,
     createAdmission, assignBed, discharge, setBedStatus, addProgressNote, recordPayment, submitClaim,

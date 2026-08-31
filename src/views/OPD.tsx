@@ -36,7 +36,7 @@ function VitalsPanel({ consultId, vitals, canEdit, onSave }: { consultId: string
   return (
     <Card title="Vitals & triage" sub="recorded by nursing staff"
       action={canEdit ? <Btn size="sm" icon="check" onClick={() => onSave(v)}>Save vitals</Btn> : <Pill tone="gray">read-only</Pill>}>
-      <div className="grid grid-cols-3 gap-2.5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
         {fields.map((f) => (
           <div key={f.k}>
             <p className="micro text-ink-faint mb-1">{f.label}</p>
@@ -138,7 +138,7 @@ function RxBuilder({ patientId, patientAllergies, onSent }: { patientId: string;
                       <I name="x" className="w-3.5 h-3.5" />
                     </button>
                   </div>
-                  <div className="grid grid-cols-4 gap-1.5">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                     <TextInput placeholder="Dosage" value={it.dosage} onChange={(e) => setItems((p) => p.map((x, i) => (i === idx ? { ...x, dosage: e.target.value } : x)))} className="!py-1.5 !text-xs" />
                     <TextInput placeholder="Freq (1-0-1)" value={it.frequency} onChange={(e) => setItems((p) => p.map((x, i) => (i === idx ? { ...x, frequency: e.target.value } : x)))} className="!py-1.5 !text-xs" />
                     <TextInput placeholder="Duration" value={it.duration} onChange={(e) => setItems((p) => p.map((x, i) => (i === idx ? { ...x, duration: e.target.value } : x)))} className="!py-1.5 !text-xs" />

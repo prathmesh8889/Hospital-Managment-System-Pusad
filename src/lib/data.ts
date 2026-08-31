@@ -7,7 +7,7 @@ export type Role =
   | "pharmacist" | "lab" | "radiology" | "billing" | "patient";
 
 export type ModuleId =
-  | "dashboard" | "portal" | "patients" | "appointments" | "opd"
+  | "dashboard" | "command" | "portal" | "patients" | "appointments" | "opd"
   | "prescriptions" | "lab" | "wards" | "pharmacy" | "billing"
   | "inventory" | "reports";
 
@@ -30,8 +30,32 @@ export const ROLES: RoleMeta[] = [
 
 export const ROLE_MAP: Record<Role, RoleMeta> = Object.fromEntries(ROLES.map((r) => [r.id, r])) as Record<Role, RoleMeta>;
 
+/* ---------- login credentials (demo directory) ---------- */
+
+export const CREDENTIALS: Record<Role, { username: string; password: string }> = {
+  super: { username: "super.admin", password: "Admin@101" },
+  admin: { username: "victor.hale", password: "Admin@102" },
+  reception: { username: "front.desk", password: "Front@103" },
+  doctor: { username: "dr.adeyemi", password: "Medic@104" },
+  nurse: { username: "rn.kim", password: "Care@105" },
+  pharmacist: { username: "pharm.yusuf", password: "Rx@106" },
+  lab: { username: "lab.ingrid", password: "Lab@107" },
+  radiology: { username: "img.kofi", password: "Scan@108" },
+  billing: { username: "accounts.renata", password: "Bill@109" },
+  patient: { username: "amara.singh", password: "Patient@110" },
+};
+
+export const verifyLogin = (username: string, password: string): Role | null => {
+  const u = username.trim().toLowerCase();
+  const hit = (Object.keys(CREDENTIALS) as Role[]).find(
+    (r) => CREDENTIALS[r].username.toLowerCase() === u && CREDENTIALS[r].password === password
+  );
+  return hit ?? null;
+};
+
 export const MODULE_ROLES: Record<ModuleId, Role[]> = {
   dashboard: ["super", "admin", "reception", "doctor", "nurse", "pharmacist", "lab", "radiology", "billing"],
+  command: ["super", "admin", "doctor"],
   portal: ["patient"],
   patients: ["super", "admin", "reception", "doctor", "nurse"],
   appointments: ["super", "admin", "reception", "doctor", "nurse", "patient"],
@@ -47,6 +71,7 @@ export const MODULE_ROLES: Record<ModuleId, Role[]> = {
 
 export const MODULES: { id: ModuleId; label: string; icon: string; group: string }[] = [
   { id: "dashboard", label: "Dashboard", icon: "grid", group: "Overview" },
+  { id: "command", label: "Command Center", icon: "radar", group: "Overview" },
   { id: "portal", label: "My Portal", icon: "heart", group: "Overview" },
   { id: "patients", label: "Patients", icon: "users", group: "Front desk" },
   { id: "appointments", label: "Appointments", icon: "calendar", group: "Front desk" },
