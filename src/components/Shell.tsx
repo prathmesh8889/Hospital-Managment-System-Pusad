@@ -241,7 +241,7 @@ export function Shell({ children }: { children: ReactNode }) {
     <div className="flex items-center gap-2.5 px-4 h-16 border-b border-white/8 shrink-0">
       <PulseMark className="w-8 h-8 shrink-0" />
       <div className="leading-none min-w-0">
-        <p className="font-display font-extrabold text-[14px] text-white tracking-tight truncate">AURELIA<span className="text-brand-400"> HMS</span></p>
+        <p className="font-display font-extrabold text-[14px] text-white tracking-tight truncate">IT CYBER<span className="text-brand-400"> HMS</span></p>
         <div className="flex items-center gap-1 mt-1">
           <p className="micro text-brand-400/70 truncate" title={s.hospitalName}>{s.hospitalName}</p>
           {canRename && (
@@ -290,7 +290,7 @@ export function Shell({ children }: { children: ReactNode }) {
               <div className="flex items-center gap-2.5 px-4 min-w-0">
                 <PulseMark className="w-8 h-8 shrink-0" />
                 <div className="leading-none min-w-0">
-                  <p className="font-display font-extrabold text-[14px] text-white tracking-tight truncate">AURELIA<span className="text-brand-400"> HMS</span></p>
+                  <p className="font-display font-extrabold text-[14px] text-white tracking-tight truncate">IT CYBER<span className="text-brand-400"> HMS</span></p>
                   <p className="micro text-brand-400/70 truncate" title={s.hospitalName}>{s.hospitalName}</p>
                 </div>
               </div>
