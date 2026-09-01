@@ -138,7 +138,7 @@ function Notifications() {
         )}
       </button>
       {open && (
-        <div className="pop-in absolute right-0 top-full mt-2 w-[min(340px,calc(100vw-2rem))] bg-card border border-line rounded-xl shadow-xl z-40 overflow-hidden">
+        <div className="pop-in fixed inset-x-3 top-[68px] sm:absolute sm:inset-x-auto sm:top-full sm:mt-2 sm:right-0 sm:w-[340px] bg-card border border-line rounded-xl shadow-xl z-40 overflow-hidden">
           <header className="flex items-center justify-between px-4 py-2.5 border-b border-line-soft">
             <p className="font-display font-bold text-sm text-ink">Notifications</p>
             {unread > 0 && (
