@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { AppProvider, useApp } from "./lib/store";
-import { ROLES, CREDENTIALS, verifyLogin } from "./lib/data";
+import { ROLES, CREDENTIALS, verifyLogin, fmtMoney } from "./lib/data";
 import type { Role } from "./lib/data";
 import { Shell } from "./components/Shell";
 import { I, PulseMark } from "./components/icons";
@@ -248,7 +248,7 @@ function InventoryPage() {
                     <tr key={it.id} className="border-b border-line-soft last:border-0 hover:bg-brand-50/60 transition-colors">
                       <td className="px-4 py-2.5">
                         <p className="font-semibold text-ink">{it.name}</p>
-                        <p className="text-[10.5px] text-ink-faint font-mono">${it.cost}/{it.unit}</p>
+                        <p className="text-[10.5px] text-ink-faint font-mono">{fmtMoney(it.cost)}/{it.unit}</p>
                       </td>
                       <td className="px-3 py-2.5 text-ink-soft">{it.category}</td>
                       <td className="px-3 py-2.5">

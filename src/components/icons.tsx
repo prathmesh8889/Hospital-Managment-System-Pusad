@@ -47,6 +47,7 @@ const P: Record<string, ReactNode> = {
   "eye-off": <><path d="M4 4.5 20 19.5" /><path d="M9.9 6.1A9.4 9.4 0 0 1 12 5.5c6.5 0 9.5 6.5 9.5 6.5a17.6 17.6 0 0 1-3 3.9M6.1 8.2A16.8 16.8 0 0 0 2.5 12S6 18.5 12 18.5a9.6 9.6 0 0 0 4-.9" /><path d="M9.9 10.2a3 3 0 0 0 4 4.1" /></>,
   lock: <><rect x="5" y="10.5" width="14" height="10" rx="2" /><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" /><path d="M12 14.5v2.5" /></>,
   radar: <><path d="M12 3.5a8.5 8.5 0 1 0 8.5 8.5" /><path d="M12 7a5 5 0 1 0 5 5" /><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none" /><path d="M12 12 18 6" /></>,
+  share: <><circle cx="6" cy="12" r="2.6" /><circle cx="17.5" cy="5.5" r="2.6" /><circle cx="17.5" cy="18.5" r="2.6" /><path d="m8.4 10.8 6.8-4M8.4 13.2l6.8 4" /></>,
 };
 
 export type IconName = keyof typeof P;

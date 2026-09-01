@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useApp } from "../lib/store";
-import { INTERACTION_PAIRS, LAB_CATALOG, ageOf, fullName, minutesWaiting } from "../lib/data";
+import { INTERACTION_PAIRS, LAB_CATALOG, ageOf, fullName, fmtMoney, minutesWaiting } from "../lib/data";
 import type { PrescriptionItem, Vitals } from "../lib/data";
 import { Avatar, Btn, Card, EmptyState, Field, Pill, Select, TextArea, TextInput } from "../components/ui";
 import { I } from "../components/icons";
@@ -182,7 +182,7 @@ function LabOrderPanel({ patientId, doctorId }: { patientId: string; doctorId: s
             <button key={t.id} onClick={() => toggle(t.id)}
               className={`text-left px-2.5 py-2 rounded-lg border transition-all duration-100 ${picked.includes(t.id) ? "border-brand-500 bg-brand-50 shadow-[0_0_0_1px_#0e8262]" : "border-line bg-white hover:border-brand-400/60"}`}>
               <p className="text-[12px] font-semibold text-ink leading-tight">{t.name}</p>
-              <p className="font-mono text-[10px] text-ink-faint mt-0.5">${t.price} · {t.analytes.length} analytes</p>
+              <p className="font-mono text-[10px] text-ink-faint mt-0.5">{fmtMoney(t.price)} · {t.analytes.length} analytes</p>
             </button>
           ))}
         </div>
@@ -191,7 +191,7 @@ function LabOrderPanel({ patientId, doctorId }: { patientId: string; doctorId: s
           Mark as urgent (STAT)
         </label>
         <div className="flex items-center justify-between pt-1">
-          <p className="text-[12px] text-ink-soft">{picked.length} test(s) · <span className="font-mono font-semibold text-ink">${total}</span></p>
+          <p className="text-[12px] text-ink-soft">{picked.length} test(s) · <span className="font-mono font-semibold text-ink">{fmtMoney(total)}</span></p>
           <Btn size="sm" icon="flask" disabled={picked.length === 0}
             onClick={() => { orderLab(patientId, doctorId, picked, urgent); setPicked([]); setUrgent(false); }}>
             Place order
@@ -315,7 +315,8 @@ export function OPD() {
           ) : (
             <>
               <div className="fade-up bg-card border border-line rounded-xl overflow-hidden">
-                <div className="bg-pine-900 pine-tex px-4 py-3 flex items-center gap-3 text-white">
+                <div className="bg-pine-900 pine-tex px-4 py-3 text-white">
+                  <div className="flex items-center gap-3">
                   <Avatar name={fullName(patient)} color={patient.color} size={40} />
                   <div className="min-w-0">
                     <p className="font-display font-bold text-[15px] leading-tight">{fullName(patient)} <span className="font-mono text-[10.5px] text-brand-400 ml-1">{patient.code}</span></p>
@@ -325,6 +326,16 @@ export function OPD() {
                     <span className="ml-auto flex items-center gap-1 bg-danger-600 text-white text-[10.5px] font-bold px-2 py-1 rounded-md uppercase">
                       <I name="alert" className="w-3 h-3" /> {patient.allergies.join(", ")}
                     </span>
+                  )}
+                  </div>
+                  {patient.conditions.length > 0 && (
+                    <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+                      <I name="pulse" className="w-3 h-3 text-brand-400" />
+                      <span className="micro text-pine-100/50">History</span>
+                      {patient.conditions.map((c) => (
+                        <span key={c} className="bg-white/10 border border-white/15 text-pine-100 text-[10px] font-semibold px-2 py-0.5 rounded-md">{c}</span>
+                      ))}
+                    </div>
                   )}
                 </div>
 

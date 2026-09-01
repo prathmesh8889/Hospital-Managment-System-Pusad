@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import {
-  makeSeed, uid, nowISO, ROLE_MAP, billTotals, fullName, LAB_CATALOG,
+  makeSeed, uid, nowISO, ROLE_MAP, billTotals, fullName, fmtMoney, LAB_CATALOG,
 } from "./data";
 import type {
   SeedData, Role, ModuleId, Appointment, Consultation, Prescription, PrescriptionItem,
@@ -34,6 +34,7 @@ interface AppCtx {
   markRead: (id: string) => void;
   markAllRead: () => void;
   registerPatient: (p: Omit<AppState["patients"][number], "id" | "code" | "registeredAt" | "color">) => string;
+  updatePatientClinical: (patientId: string, patch: { conditions: string[]; allergies: string[] }) => void;
   bookAppointment: (a: Pick<Appointment, "patientId" | "doctorId" | "dayOffset" | "time" | "type" | "reason">) => void;
   cancelAppointment: (id: string) => void;
   checkIn: (id: string) => void;
@@ -182,6 +183,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return code;
     },
     [s.patients, withMeta]
+  );
+
+  const updatePatientClinical = useCallback(
+    (patientId: string, patch: { conditions: string[]; allergies: string[] }) => {
+      setS((prev) => {
+        const p = prev.patients.find((x) => x.id === patientId);
+        if (!p) return prev;
+        const allergyChanged = JSON.stringify([...p.allergies].sort()) !== JSON.stringify([...patch.allergies].sort());
+        return withMeta(
+          { ...prev, patients: prev.patients.map((x) => (x.id === patientId ? { ...x, conditions: patch.conditions, allergies: patch.allergies } : x)) },
+          "Updated clinical profile",
+          `${p.code} · ${fullName(p)}`,
+          allergyChanged
+            ? { title: "Allergy record changed", desc: `${fullName(p)} — dispensing safety checks now use: ${patch.allergies.join(", ") || "no known allergies"}`, kind: "warning", audience: ["pharmacist", "doctor", "admin", "super"] }
+            : undefined
+        );
+      });
+      toast("success", "Clinical profile saved", "Conditions and allergy record updated for the whole care team.");
+    },
+    [withMeta, toast]
   );
 
   /* ---------------- appointments ---------------- */
@@ -595,9 +616,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const patient = prev.patients.find((p) => p.id === bill.patientId);
         return withMeta(
           { ...prev, bills: prev.bills.map((b) => (b.id === billId ? { ...b, payments: [...b.payments, payment], status } : b)) },
-          `Recorded payment $${payment.amount.toFixed(2)}`,
+          `Recorded payment ${fmtMoney(payment.amount)}`,
           `${bill.code} · ${method}`,
-          { title: "Payment received", desc: `${bill.code} · ${patient ? fullName(patient) : ""} · $${payment.amount.toFixed(2)} via ${method}`, kind: "success", audience: ["billing", "admin", "super"] }
+          { title: "Payment received", desc: `${bill.code} · ${patient ? fullName(patient) : ""} · ${fmtMoney(payment.amount)} via ${method}`, kind: "success", audience: ["billing", "admin", "super"] }
         );
       });
       toast("success", "Payment recorded", "Receipt has been generated.");
@@ -676,13 +697,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<AppCtx>(() => ({
     s, toasts, dismiss, toast, signIn, signOut, reset, go, setBookPatient, setBranch, setHospitalName,
-    markRead, markAllRead, registerPatient, bookAppointment, cancelAppointment, checkIn,
+    markRead, markAllRead, registerPatient, updatePatientClinical, bookAppointment, cancelAppointment, checkIn,
     startConsult, saveVitals, updateConsult, completeConsult, sendPrescription, dispense,
     orderLab, advanceLab, saveLabResults, verifyLab, setImaging, createAdmission, assignBed,
     discharge, setBedStatus, addProgressNote, recordPayment, submitClaim, createBill,
     restock, adjustInventory, createPO, receivePO,
   }), [s, toasts, dismiss, toast, signIn, signOut, reset, go, setBookPatient, setBranch, setHospitalName, markRead, markAllRead,
-    registerPatient, bookAppointment, cancelAppointment, checkIn, startConsult, saveVitals, updateConsult,
+    registerPatient, updatePatientClinical, bookAppointment, cancelAppointment, checkIn, startConsult, saveVitals, updateConsult,
     completeConsult, sendPrescription, dispense, orderLab, advanceLab, saveLabResults, verifyLab, setImaging,
     createAdmission, assignBed, discharge, setBedStatus, addProgressNote, recordPayment, submitClaim,
     createBill, restock, adjustInventory, createPO, receivePO]);
