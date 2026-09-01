@@ -301,7 +301,7 @@ export function Shell({ children }: { children: ReactNode }) {
 
       {/* ---------- main ---------- */}
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-16 shrink-0 bg-card/90 backdrop-blur border-b border-line flex items-center gap-2.5 sm:gap-3 px-3 sm:px-4 lg:px-6">
+        <header className="relative z-30 h-16 shrink-0 bg-card/90 backdrop-blur border-b border-line flex items-center gap-2.5 sm:gap-3 px-3 sm:px-4 lg:px-6">
           <button onClick={() => setNavOpen(true)} className="lg:hidden w-9 h-9 grid place-items-center rounded-lg border border-line bg-white text-ink-soft hover:text-brand-700 hover:border-brand-500 transition-colors shrink-0" aria-label="Open menu">
             <I name="menu" className="w-[18px] h-[18px]" />
           </button>
