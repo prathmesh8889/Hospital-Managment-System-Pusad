@@ -76,7 +76,8 @@ const Ctx = createContext<AppCtx | null>(null);
 
 const STORAGE_KEY = "aurelia-hms-v3";
 
-const DEFAULT_HOSPITAL = "St. Aurelia Medical Center";
+const DEFAULT_HOSPITAL = "IT CYBER HOSPITAL";
+const LEGACY_HOSPITAL = "St. Aurelia Medical Center";
 
 const freshState = (): AppState => ({
   ...makeSeed(),
@@ -95,7 +96,12 @@ const loadState = (): AppState => {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as AppState;
-      if (parsed && parsed.patients && parsed.medicines && parsed.session !== undefined) return { ...freshState(), ...parsed };
+      if (parsed && parsed.patients && parsed.medicines && parsed.session !== undefined) {
+        const state = { ...freshState(), ...parsed };
+        // rebrand: upgrade saved facility name unless the user set a custom one
+        if (state.hospitalName === LEGACY_HOSPITAL) state.hospitalName = DEFAULT_HOSPITAL;
+        return state;
+      }
     }
   } catch { /* corrupted state — fall through to seed */ }
   return freshState();
