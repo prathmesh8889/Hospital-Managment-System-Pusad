@@ -42,7 +42,7 @@ function VitalsPanel({ consultId, vitals, canEdit, onSave }: { consultId: string
             <p className="micro text-ink-faint mb-1">{f.label}</p>
             {canEdit ? (
               <input type="number" value={v[f.k] ?? ""} onChange={num(f.k)} placeholder="—"
-                className="w-full bg-white border border-line rounded-lg px-2.5 py-1.5 text-[13px] font-mono outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15" />
+                className="w-full bg-white border border-line rounded-lg px-2.5 py-1.5 text-[16px] sm:text-[13px] font-mono outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15" />
             ) : (
               <p className={`font-mono text-[15px] font-semibold px-2.5 py-1.5 rounded-lg border ${v[f.k] === undefined ? "text-ink-faint border-line-soft" : "text-ink border-line-soft bg-white"}`}>
                 {v[f.k] ?? "—"}<span className="text-[9.5px] text-ink-faint ml-1">{f.unit}</span>
@@ -100,7 +100,7 @@ function RxBuilder({ patientId, patientAllergies, onSent }: { patientId: string;
         <div className="relative">
           <I name="search" className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint" />
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search formulary — e.g. amox, salbutamol…"
-            className="w-full bg-white border border-line rounded-lg pl-9 pr-3 py-2 text-[13px] outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15" />
+            className="w-full bg-white border border-line rounded-lg pl-9 pr-3 py-2 text-[16px] sm:text-[13px] outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15" />
           {matches.length > 0 && (
             <div className="pop-in absolute z-20 left-0 right-0 top-full mt-1 bg-card border border-line rounded-lg shadow-lg overflow-hidden">
               {matches.map((m) => {

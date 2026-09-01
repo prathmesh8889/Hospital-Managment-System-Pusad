@@ -173,7 +173,7 @@ export function Meter({ value, max, tone = "green" }: { value: number; max: numb
 /* ---------- form primitives ---------- */
 
 export const inputCls =
-  "w-full bg-white border border-line rounded-lg px-3 py-2 text-sm text-ink placeholder:text-ink-faint/70 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-shadow";
+  "w-full bg-white border border-line rounded-lg px-3 py-2 text-[16px] sm:text-sm text-ink placeholder:text-ink-faint/70 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-shadow";
 
 export function Field({ label, children, hint }: { label: string; children: ReactNode; hint?: string }) {
   return (
@@ -266,7 +266,7 @@ export function Drawer({ open, onClose, children, width = 440 }: { open: boolean
 
 export function Tabs({ tabs, active, onChange }: { tabs: { id: string; label: string; count?: number }[]; active: string; onChange: (id: string) => void }) {
   return (
-    <div className="flex items-center gap-1 bg-line-soft/70 rounded-lg p-1 w-fit">
+    <div className="flex flex-wrap items-center gap-1 bg-line-soft/70 rounded-lg p-1 w-fit max-w-full">
       {tabs.map((t) => (
         <button
           key={t.id}

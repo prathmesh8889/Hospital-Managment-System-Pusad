@@ -64,7 +64,8 @@ export function Pharmacy() {
                     <span className="font-mono text-[10.5px] text-ink-faint">{patient?.code}</span>
                     {patient && patient.allergies.length > 0 && <Pill tone="red" className="ml-auto">⚠ {patient.allergies.join(", ")}</Pill>}
                   </div>
-                  <table className="w-full text-[12px]">
+                  <div className="overflow-x-auto scroll-slim">
+                  <table className="w-full text-[12px] min-w-[380px]">
                     <thead>
                       <tr className="micro text-ink-faint text-left">
                         <th className="pb-1.5 font-medium">Medicine</th>
@@ -89,6 +90,7 @@ export function Pharmacy() {
                       })}
                     </tbody>
                   </table>
+                  </div>
                   {short && (
                     <p className="flex items-center gap-1.5 text-[11.5px] font-medium text-danger-700 bg-danger-50 border border-danger-600/20 rounded-md px-2.5 py-1.5">
                       <I name="alert" className="w-3.5 h-3.5" /> Short stock on one or more items — restock before dispensing.

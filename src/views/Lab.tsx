@@ -48,7 +48,7 @@ function ResultEntry({ order }: { order: LabOrder }) {
                     type="number" step="0.1" value={a.result ?? ""} placeholder="enter"
                     disabled={!canEnter}
                     onChange={(e) => setVals((p) => p.map((x, j) => (j === i ? { ...x, result: e.target.value === "" ? undefined : Number(e.target.value) } : x)))}
-                    className="w-24 bg-white border border-line rounded-md px-2 py-1 font-mono text-[13px] font-semibold outline-none focus:border-brand-500 disabled:bg-line-soft/50"
+                    className="w-24 bg-white border border-line rounded-md px-2 py-1 font-mono text-[16px] sm:text-[13px] font-semibold outline-none focus:border-brand-500 disabled:bg-line-soft/50"
                   />
                   {f && <span className={`font-mono text-[11px] font-bold ${f === "H" ? "text-danger-600" : "text-steel-600"}`}>{f === "H" ? "▲ HIGH" : "▼ LOW"}</span>}
                   {!f && a.result !== undefined && <span className="font-mono text-[11px] font-bold text-brand-700">IN RANGE</span>}
@@ -101,7 +101,7 @@ export function Lab() {
           <p className="micro text-brand-700">Diagnostics</p>
           <h1 className="font-display font-extrabold text-[22px] tracking-tight text-ink">Laboratory & Imaging</h1>
         </div>
-        <div className="ml-auto flex gap-2">
+        <div className="ml-auto flex flex-wrap gap-2">
           {statusFlow.map((x) => (
             <div key={x.st} className="bg-card border border-line rounded-lg px-3 py-1.5 text-center">
               <p className="font-mono font-bold text-[15px] text-ink tabular-nums">{x.n}</p>
