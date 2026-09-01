@@ -64,7 +64,7 @@ export function Card({ title, sub, action, children, className = "", pad = true 
   return (
     <section className={`bg-card border border-line rounded-xl shadow-[0_1px_2px_rgba(20,35,30,0.05)] ${className}`}>
       {(title || action) && (
-        <header className="flex items-center justify-between gap-3 px-4 pt-3.5 pb-2.5 border-b border-line-soft">
+        <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 pt-3.5 pb-2.5 border-b border-line-soft">
           <div>
             <h3 className="font-display font-bold text-[15px] text-ink leading-tight">{title}</h3>
             {sub && <p className="text-xs text-ink-faint mt-0.5">{sub}</p>}

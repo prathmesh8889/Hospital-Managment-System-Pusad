@@ -1,12 +1,14 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import {
-  makeSeed, uid, nowISO, ROLE_MAP, billTotals, fullName, fmtMoney, LAB_CATALOG,
+  makeSeed, uid, nowISO, ROLE_MAP, billTotals, fullName, fmtMoney, LAB_CATALOG, CREDENTIALS,
 } from "./data";
 import type {
   SeedData, Role, ModuleId, Appointment, Consultation, Prescription, PrescriptionItem,
   LabAnalyte, LabOrder, Bill, BillItem, Payment, Bed, Admission, AppNotification, AuditEvent, Vitals,
 } from "./data";
+
+export interface ProfileOverride { name?: string; phone?: string; email?: string }
 
 export interface AppState extends SeedData {
   session: { role: Role; userId: string } | null;
@@ -15,6 +17,8 @@ export interface AppState extends SeedData {
   bookPatientId: string | null;
   branchId: string;
   hospitalName: string;
+  profiles: Partial<Record<Role, ProfileOverride>>;
+  passwordOverrides: Partial<Record<Role, string>>;
 }
 
 export interface Toast { id: number; kind: "success" | "error" | "info" | "warning"; title: string; desc?: string; }
@@ -26,6 +30,11 @@ interface AppCtx {
   toast: (kind: Toast["kind"], title: string, desc?: string) => void;
   signIn: (role: Role) => void;
   signOut: () => void;
+  attemptLogin: (role: Role, username: string, password: string) => boolean;
+  updateProfile: (role: Role, patch: ProfileOverride) => void;
+  changePassword: (role: Role, current: string, next: string) => boolean;
+  updatePatientContact: (patientId: string, patch: { phone?: string; email?: string; address?: string }) => void;
+  effectiveCredentials: Record<Role, { username: string; password: string }>;
   reset: () => void;
   go: (view: ModuleId, focusPatientId?: string | null) => void;
   setBookPatient: (id: string | null) => void;
@@ -77,6 +86,8 @@ const freshState = (): AppState => ({
   bookPatientId: null,
   branchId: "main",
   hospitalName: DEFAULT_HOSPITAL,
+  profiles: {},
+  passwordOverrides: {},
 });
 
 const loadState = (): AppState => {
@@ -136,6 +147,87 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(() => {
     setS((prev) => ({ ...prev, session: null }));
   }, []);
+
+  /* ---------------- profile & security ---------------- */
+
+  const attemptLogin = useCallback(
+    (role: Role, username: string, password: string): boolean => {
+      const c = CREDENTIALS[role];
+      const effPass = s.passwordOverrides[role] ?? c.password;
+      if (username.trim().toLowerCase() !== c.username || password !== effPass) {
+        setS((prev) => ({
+          ...prev,
+          audit: [{ id: uid("AU"), user: username.trim() || "unknown", role, action: "Failed sign-in attempt", entity: "Session · auth", at: nowISO(), ip: "10.4.2.31" }, ...prev.audit].slice(0, 120),
+        }));
+        return false;
+      }
+      signIn(role);
+      return true;
+    },
+    [s.passwordOverrides, signIn]
+  );
+
+  const updateProfile = useCallback(
+    (role: Role, patch: ProfileOverride) => {
+      setS((prev) =>
+        withMeta(
+          { ...prev, profiles: { ...prev.profiles, [role]: { ...(prev.profiles[role] ?? {}), ...patch } } },
+          "Updated profile",
+          `${ROLE_MAP[role].name} · contact details`
+        )
+      );
+      toast("success", "Profile saved", "Your details are updated across the console.");
+    },
+    [withMeta, toast]
+  );
+
+  const changePassword = useCallback(
+    (role: Role, current: string, next: string): boolean => {
+      const effPass = s.passwordOverrides[role] ?? CREDENTIALS[role].password;
+      if (current !== effPass) {
+        toast("error", "Current password is incorrect", "Check the password you use to sign in.");
+        return false;
+      }
+      if (next.length < 6) {
+        toast("error", "New password too short", "Use at least 6 characters.");
+        return false;
+      }
+      setS((prev) =>
+        withMeta(
+          { ...prev, passwordOverrides: { ...prev.passwordOverrides, [role]: next } },
+          "Changed password",
+          `${ROLE_MAP[role].name} · security`
+        )
+      );
+      toast("success", "Password updated", "Use the new password from the next sign-in.");
+      return true;
+    },
+    [s.passwordOverrides, withMeta, toast]
+  );
+
+  const updatePatientContact = useCallback(
+    (patientId: string, patch: { phone?: string; email?: string; address?: string }) => {
+      setS((prev) => {
+        const p = prev.patients.find((x) => x.id === patientId);
+        if (!p) return prev;
+        return withMeta(
+          { ...prev, patients: prev.patients.map((x) => (x.id === patientId ? { ...x, ...patch } : x)) },
+          "Updated contact details",
+          `${p.code} · ${fullName(p)}`
+        );
+      });
+      toast("success", "Contact details saved", "The front desk will see the updated information.");
+    },
+    [withMeta, toast]
+  );
+
+  const effectiveCredentials = useMemo(() => {
+    const out = {} as Record<Role, { username: string; password: string }>;
+    (Object.keys(CREDENTIALS) as Role[]).forEach((r) => {
+      out[r] = { username: CREDENTIALS[r].username, password: s.passwordOverrides[r] ?? CREDENTIALS[r].password };
+    });
+    return out;
+  }, [s.passwordOverrides]);
 
   const reset = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY);
@@ -696,13 +788,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo<AppCtx>(() => ({
-    s, toasts, dismiss, toast, signIn, signOut, reset, go, setBookPatient, setBranch, setHospitalName,
+    s, toasts, dismiss, toast, signIn, signOut, attemptLogin, updateProfile, changePassword, updatePatientContact, effectiveCredentials,
+    reset, go, setBookPatient, setBranch, setHospitalName,
     markRead, markAllRead, registerPatient, updatePatientClinical, bookAppointment, cancelAppointment, checkIn,
     startConsult, saveVitals, updateConsult, completeConsult, sendPrescription, dispense,
     orderLab, advanceLab, saveLabResults, verifyLab, setImaging, createAdmission, assignBed,
     discharge, setBedStatus, addProgressNote, recordPayment, submitClaim, createBill,
     restock, adjustInventory, createPO, receivePO,
-  }), [s, toasts, dismiss, toast, signIn, signOut, reset, go, setBookPatient, setBranch, setHospitalName, markRead, markAllRead,
+  }), [s, toasts, dismiss, toast, signIn, signOut, attemptLogin, updateProfile, changePassword, updatePatientContact, effectiveCredentials,
+    reset, go, setBookPatient, setBranch, setHospitalName, markRead, markAllRead,
     registerPatient, updatePatientClinical, bookAppointment, cancelAppointment, checkIn, startConsult, saveVitals, updateConsult,
     completeConsult, sendPrescription, dispense, orderLab, advanceLab, saveLabResults, verifyLab, setImaging,
     createAdmission, assignBed, discharge, setBedStatus, addProgressNote, recordPayment, submitClaim,

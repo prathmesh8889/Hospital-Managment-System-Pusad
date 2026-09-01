@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { AppProvider, useApp } from "./lib/store";
-import { ROLES, CREDENTIALS, verifyLogin, fmtMoney } from "./lib/data";
+import { ROLES, fmtMoney } from "./lib/data";
 import type { Role } from "./lib/data";
 import { Shell } from "./components/Shell";
 import { I, PulseMark } from "./components/icons";
@@ -20,7 +20,7 @@ import { Reports } from "./views/Reports";
 import { Portal } from "./views/Portal";
 
 function SignIn() {
-  const { s, signIn } = useApp();
+  const { s, attemptLogin, effectiveCredentials } = useApp();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
@@ -40,10 +40,11 @@ function SignIn() {
     setError(null);
     setPending(true);
     window.setTimeout(() => {
-      const role = verifyLogin(username, password);
-      if (role) {
-        signIn(role);
-      } else {
+      const role = (Object.keys(effectiveCredentials) as Role[]).find(
+        (r) => effectiveCredentials[r].username === username.trim().toLowerCase()
+      );
+      const ok = role ? attemptLogin(role, username, password) : false;
+      if (!ok) {
         setError("Invalid ID or password — check the demo roster below.");
         setPending(false);
       }
@@ -51,8 +52,8 @@ function SignIn() {
   };
 
   const autoFill = (r: Role) => {
-    setUsername(CREDENTIALS[r].username);
-    setPassword(CREDENTIALS[r].password);
+    setUsername(effectiveCredentials[r].username);
+    setPassword(effectiveCredentials[r].password);
     setPicked(r);
     setError(null);
   };
@@ -167,7 +168,7 @@ function SignIn() {
 
           <ul className="mt-3 grid sm:grid-cols-2 gap-2">
             {ROLES.map((r, i) => {
-              const c = CREDENTIALS[r.id];
+              const c = effectiveCredentials[r.id];
               const active = picked === r.id;
               return (
                 <li key={r.id} className="fade-up" style={{ animationDelay: `${i * 35}ms` }}>

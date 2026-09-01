@@ -5,6 +5,7 @@ import { MODULES, MODULE_ROLES, ROLE_MAP, BRANCHES, timeAgo, fullName } from "..
 import type { ModuleId } from "../lib/data";
 import { I, PulseMark } from "./icons";
 import { Avatar, Btn, ECG, Modal, Pill, TextInput, Field } from "./ui";
+import { ProfileDrawer } from "./Profile";
 
 function Clock() {
   const [now, setNow] = useState(new Date());
@@ -196,7 +197,9 @@ export function Shell({ children }: { children: ReactNode }) {
   const groups = [...new Set(visible.map((m) => m.group))];
   const [navOpen, setNavOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const canRename = role === "super" || role === "admin" || role === "doctor";
+  const displayName = s.profiles[role]?.name ?? meta.name;
 
   useEffect(() => { setNavOpen(false); }, [s.view]);
 
@@ -329,16 +332,19 @@ export function Shell({ children }: { children: ReactNode }) {
             <Clock />
             <Notifications />
             <div className="h-8 w-px bg-line hidden sm:block" />
-            <div className="flex items-center gap-2 sm:gap-2.5">
-              <Avatar name={meta.name} color={meta.color} size={34} />
-              <div className="hidden sm:block leading-tight">
-                <p className="text-[13px] font-semibold text-ink max-w-[140px] truncate">{meta.name}</p>
-                <p className="micro text-brand-700">{meta.label}</p>
-              </div>
-              <button onClick={signOut} className="w-8 h-8 grid place-items-center rounded-lg text-ink-faint hover:text-danger-600 hover:bg-danger-50 transition-colors" title="Sign out" aria-label="Sign out">
-                <I name="logout" className="w-4 h-4" />
-              </button>
-            </div>
+            <button onClick={() => setProfileOpen(true)} className="flex items-center gap-2 sm:gap-2.5 group rounded-lg pl-1 pr-1.5 py-1 -my-1 hover:bg-brand-50 transition-colors" title="Open profile" aria-label="Open profile">
+              <span className="relative shrink-0">
+                <Avatar name={displayName} color={meta.color} size={34} />
+                <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-brand-500 border-2 border-card" />
+              </span>
+              <span className="hidden sm:block leading-tight text-left">
+                <span className="block text-[13px] font-semibold text-ink max-w-[140px] truncate group-hover:text-brand-700 transition-colors">{displayName}</span>
+                <span className="micro text-brand-700 flex items-center gap-1">{meta.label}<I name="edit" className="w-2.5 h-2.5 opacity-60" /></span>
+              </span>
+            </button>
+            <button onClick={signOut} className="w-8 h-8 grid place-items-center rounded-lg text-ink-faint hover:text-danger-600 hover:bg-danger-50 transition-colors shrink-0" title="Sign out" aria-label="Sign out">
+              <I name="logout" className="w-4 h-4" />
+            </button>
           </div>
         </header>
 
@@ -348,6 +354,7 @@ export function Shell({ children }: { children: ReactNode }) {
       </div>
 
       <RenameModal open={renameOpen} onClose={() => setRenameOpen(false)} />
+      <ProfileDrawer open={profileOpen} onClose={() => setProfileOpen(false)} />
 
       {/* ---------- toasts ---------- */}
       <div className="fixed bottom-3 right-3 sm:bottom-4 sm:right-4 z-[60] flex flex-col gap-2 w-[calc(100vw-1.5rem)] max-w-[330px]" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
