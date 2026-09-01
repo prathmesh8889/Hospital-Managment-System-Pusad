@@ -203,9 +203,9 @@ function PatientDrawer({ patient, onClose }: { patient: Patient; onClose: () => 
           )}
         </div>
         {canWrite && (
-          <div className="mt-3 flex gap-2">
-            <Btn size="sm" icon="calendar" className="!bg-brand-500 hover:!bg-brand-400" onClick={() => { setBookPatient(patient.id); go("appointments"); }}>Book appointment</Btn>
-            <Btn size="sm" variant="dark" icon="bed" className="!bg-white/10 hover:!bg-white/20 border border-white/15" onClick={admit}>Request admission</Btn>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Btn size="sm" icon="calendar" className="!bg-brand-500 hover:!bg-brand-400 flex-1 sm:flex-none" onClick={() => { setBookPatient(patient.id); go("appointments"); }}>Book appointment</Btn>
+            <Btn size="sm" variant="dark" icon="bed" className="!bg-white/10 hover:!bg-white/20 border border-white/15 flex-1 sm:flex-none" onClick={admit}>Request admission</Btn>
           </div>
         )}
       </div>
@@ -388,11 +388,11 @@ export function Patients() {
           <p className="micro text-brand-700">Patient management</p>
           <h1 className="font-display font-extrabold text-[22px] tracking-tight text-ink">Patient registry</h1>
         </div>
-        <div className="ml-auto flex items-center gap-2">
-          <div className="relative">
+        <div className="ml-auto flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          <div className="relative flex-1 sm:flex-none">
             <I name="search" className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint" />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, ID, phone, blood…"
-              className="bg-white border border-line rounded-lg pl-9 pr-3 py-2 text-[13px] w-[280px] outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 transition-shadow" />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, ID, phone…"
+              className="bg-white border border-line rounded-lg pl-9 pr-3 py-2 text-[16px] sm:text-[13px] w-full sm:w-[280px] outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 transition-shadow" />
           </div>
           {(role === "reception" || role === "admin" || role === "super") && (
             <Btn icon="plus" onClick={() => setShowReg(true)}>New patient</Btn>
@@ -405,13 +405,13 @@ export function Patients() {
           <table className="w-full text-[13px]">
             <thead>
               <tr className="micro text-ink-faint text-left border-b border-line">
-                <th className="px-4 py-2.5 font-medium">Patient</th>
-                <th className="px-3 py-2.5 font-medium">Age / Sex</th>
+                <th className="px-3 sm:px-4 py-2.5 font-medium">Patient</th>
+                <th className="px-3 py-2.5 font-medium hidden sm:table-cell">Age / Sex</th>
                 <th className="px-3 py-2.5 font-medium">Blood</th>
                 <th className="px-3 py-2.5 font-medium hidden md:table-cell">Contact</th>
                 <th className="px-3 py-2.5 font-medium hidden lg:table-cell">Insurance</th>
                 <th className="px-3 py-2.5 font-medium">Flags</th>
-                <th className="px-3 py-2.5" />
+                <th className="px-2 py-2.5" />
               </tr>
             </thead>
             <tbody>
@@ -420,16 +420,16 @@ export function Patients() {
                 return (
                   <tr key={p.id} onClick={() => setSelectedId(p.id)}
                     className="border-b border-line-soft last:border-0 hover:bg-brand-50/70 cursor-pointer transition-colors fade-up" style={{ animationDelay: `${Math.min(idx, 10) * 30}ms` }}>
-                    <td className="px-4 py-2.5">
-                      <div className="flex items-center gap-2.5">
+                    <td className="px-3 sm:px-4 py-2.5">
+                      <div className="flex items-center gap-2.5 min-w-0">
                         <Avatar name={fullName(p)} color={p.color} size={32} />
-                        <div>
-                          <p className="font-semibold text-ink">{fullName(p)}</p>
+                        <div className="min-w-0">
+                          <p className="font-semibold text-ink truncate">{fullName(p)}</p>
                           <p className="font-mono text-[10.5px] text-ink-faint">{p.code}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-3 py-2.5 text-ink-soft">{ageOf(p.dob)} · {p.gender[0]}</td>
+                    <td className="px-3 py-2.5 text-ink-soft hidden sm:table-cell">{ageOf(p.dob)} · {p.gender[0]}</td>
                     <td className="px-3 py-2.5"><Pill tone="red">{p.blood}</Pill></td>
                     <td className="px-3 py-2.5 text-ink-soft hidden md:table-cell">{p.phone}</td>
                     <td className="px-3 py-2.5 text-ink-soft hidden lg:table-cell">{insurer?.name ?? <span className="text-ink-faint">Self-pay</span>}</td>

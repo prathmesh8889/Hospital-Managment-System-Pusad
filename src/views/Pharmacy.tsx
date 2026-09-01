@@ -58,11 +58,11 @@ export function Pharmacy() {
                 sub={`${doctor?.name ?? ""} · ${timeAgo(rx.createdAt)}`}
                 action={<Btn size="sm" icon="check" onClick={() => dispense(rx.id)} style={{ animationDelay: `${idx * 40}ms` }}>Dispense</Btn>}>
                 <div className="p-4 pt-0 space-y-2">
-                  <div className="flex items-center gap-2.5 bg-paper rounded-lg px-3 py-2">
+                  <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 bg-paper rounded-lg px-3 py-2">
                     {patient && <Avatar name={fullName(patient)} color={patient.color} size={28} />}
                     <p className="text-[13px] font-semibold text-ink">{patient ? fullName(patient) : "—"}</p>
                     <span className="font-mono text-[10.5px] text-ink-faint">{patient?.code}</span>
-                    {patient && patient.allergies.length > 0 && <Pill tone="red" className="ml-auto">⚠ {patient.allergies.join(", ")}</Pill>}
+                    {patient && patient.allergies.length > 0 && <Pill tone="red" className="sm:ml-auto">⚠ {patient.allergies.join(", ")}</Pill>}
                   </div>
                   <div className="overflow-x-auto scroll-slim">
                   <table className="w-full text-[12px] min-w-[380px]">
