@@ -41,6 +41,9 @@ export function Dashboard() {
 
   const meta = { super: "System", admin: "Operations", reception: "Front desk", doctor: "Clinical", nurse: "Ward", pharmacist: "Dispensary", lab: "Laboratory", radiology: "Imaging", billing: "Revenue", patient: "Portal" }[role];
 
+  const displayName = s.profiles[role]?.name ?? (s.session?.userId || "there");
+  const greetName = displayName.split(" ").filter((w) => w !== "Dr." && w !== "RN")[0] ?? displayName;
+
   const patientOf = (id: string) => s.patients.find((p) => p.id === id);
 
   return (
@@ -50,7 +53,7 @@ export function Dashboard() {
         <div className="min-w-0">
           <p className="micro text-brand-400">{dayLabel(0)} · {meta} view</p>
           <h1 className="font-display font-extrabold text-[22px] leading-tight tracking-tight mt-1">
-            {greeting}, {s.session?.userId.split(" ")[0]} — here's the pulse of the floor.
+            {greeting}, <span className="text-brand-400">{greetName}</span> — here's the pulse of the floor.
           </h1>
           <p className="text-[12.5px] text-pine-100/70 mt-1">
             {today.length} appointments · {waiting.length + inConsult.length} in queue · {occupied} beds occupied · {pendingRx.length} Rx pending
