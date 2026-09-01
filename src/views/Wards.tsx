@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useApp } from "../lib/store";
-import { ageOf, fullName } from "../lib/data";
+import { ageOf, fullName, fmtMoney, fmtMoney0 } from "../lib/data";
 import type { Admission, Bed } from "../lib/data";
 import { Avatar, Btn, Card, Drawer, EmptyState, Field, Modal, Pill, Select, TextArea, TextInput, BED_META } from "../components/ui";
 import { I } from "../components/icons";
@@ -38,7 +38,7 @@ function AssignBedModal({ admission, onClose }: { admission: Admission; onClose:
       <Field label="Choose an available bed">
         <Select value={bedId} onChange={(e) => setBedId(e.target.value)}>
           {available.map((b) => (
-            <option key={b.id} value={b.id}>{b.label} · {s.wards.find((w) => w.id === b.wardId)?.name} · ${b.rate}/night</option>
+            <option key={b.id} value={b.id}>{b.label} · {s.wards.find((w) => w.id === b.wardId)?.name} · {fmtMoney0(b.rate)}/night</option>
           ))}
         </Select>
       </Field>
@@ -73,7 +73,7 @@ function NewAdmissionModal({ open, onClose }: { open: boolean; onClose: () => vo
         <Field label="Assign bed now (optional)">
           <Select value={directBed} onChange={(e) => setDirectBed(e.target.value)}>
             <option value="">Leave pending</option>
-            {freeInWard.map((b) => <option key={b.id} value={b.id}>{b.label} · ${b.rate}/night</option>)}
+            {freeInWard.map((b) => <option key={b.id} value={b.id}>{b.label} · {fmtMoney0(b.rate)}/night</option>)}
           </Select>
         </Field>
       </div>
@@ -159,7 +159,7 @@ function BedDrawer({ bed, onClose }: { bed: Bed; onClose: () => void }) {
           <>
             <div className="bg-card border border-line rounded-xl p-4">
               <p className="micro text-ink-faint mb-2">Bed details</p>
-              <p className="text-[13px] text-ink-soft">Rate <span className="font-mono font-semibold text-ink">${bed.rate}</span> / night · {bed.type} bed in {ward?.name} (floor {ward?.floor}).</p>
+              <p className="text-[13px] text-ink-soft">Rate <span className="font-mono font-semibold text-ink">{fmtMoney(bed.rate)}</span> / night · {bed.type} bed in {ward?.name} (floor {ward?.floor}).</p>
             </div>
             {canManage && bed.status === "cleaning" && (
               <Btn icon="check" className="w-full" onClick={() => { setBedStatus(bed.id, "available"); onClose(); }}>Mark cleaned & available</Btn>
@@ -258,7 +258,7 @@ export function Wards() {
                   className={`fade-up relative rounded-xl border-2 px-2 py-3 text-left transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md ${BED_STYLE[b.status]}`}
                   style={{ animationDelay: `${i * 30}ms` }}>
                   <p className={`font-display font-extrabold text-[15px] ${b.status === "occupied" ? "text-white" : "text-ink"}`}>{b.label}</p>
-                  <p className={`text-[10px] font-mono mt-0.5 ${b.status === "occupied" ? "text-pine-100/60" : "text-ink-faint"}`}>${b.rate}/n · {b.type.split(" ")[0]}</p>
+                  <p className={`text-[10px] font-mono mt-0.5 ${b.status === "occupied" ? "text-pine-100/60" : "text-ink-faint"}`}>{fmtMoney0(b.rate)}/n · {b.type.split(" ")[0]}</p>
                   {p && (
                     <span className="mt-1.5 flex items-center gap-1">
                       <Avatar name={fullName(p)} color={p.color} size={18} className="!ring-0" />

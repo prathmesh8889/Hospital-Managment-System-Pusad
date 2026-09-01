@@ -4,6 +4,60 @@ import { ageOf, billTotals, dayLabel, deptName, fmtDate, fmtMoney, fullName, tim
 import type { Patient } from "../lib/data";
 import { Avatar, Btn, Card, Drawer, EmptyState, Field, KeyVal, Modal, Pill, Select, Tabs, TextArea, TextInput, BILL_META, LAB_META } from "../components/ui";
 import { I } from "../components/icons";
+import { RxLetterModal } from "../components/RxLetter";
+
+function ChipInput({ label, hint, items, setItems, tone }: { label: string; hint: string; items: string[]; setItems: (v: string[]) => void; tone: "red" | "steel" }) {
+  const [val, setVal] = useState("");
+  const add = () => {
+    const v = val.trim();
+    if (!v) return;
+    if (!items.some((x) => x.toLowerCase() === v.toLowerCase())) setItems([...items, v]);
+    setVal("");
+  };
+  return (
+    <div>
+      <p className="micro text-ink-soft mb-1.5">{label}</p>
+      <div className="flex flex-wrap gap-1.5 mb-2 min-h-[26px]">
+        {items.length === 0 && <span className="text-[11.5px] text-ink-faint self-center">{hint}</span>}
+        {items.map((c) => (
+          <span key={c} className={`inline-flex items-center gap-1.5 text-[11.5px] font-semibold px-2 py-1 rounded-md ${tone === "red" ? "bg-danger-50 text-danger-700 border border-danger-600/20" : "bg-steel-50 text-steel-700 border border-steel-600/20"}`}>
+            {c}
+            <button onClick={() => setItems(items.filter((x) => x !== c))} className="hover:opacity-60 transition-opacity" aria-label={`Remove ${c}`}>
+              <I name="x" className="w-3 h-3" />
+            </button>
+          </span>
+        ))}
+      </div>
+      <div className="flex gap-1.5">
+        <TextInput value={val} onChange={(e) => setVal(e.target.value)} placeholder={`Add ${label.toLowerCase()}…`}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }} />
+        <Btn variant="outline" size="sm" icon="plus" onClick={add} className="shrink-0">Add</Btn>
+      </div>
+    </div>
+  );
+}
+
+function ClinicalEditor({ patient, onClose }: { patient: Patient; onClose: () => void }) {
+  const { updatePatientClinical } = useApp();
+  const [conditions, setConditions] = useState<string[]>([...patient.conditions]);
+  const [allergies, setAllergies] = useState<string[]>([...patient.allergies]);
+  return (
+    <Modal open onClose={onClose} title="Clinical profile" wide
+      sub={`${fullName(patient)} · ${patient.code} — changes are audit-logged and visible to the whole care team`}
+      footer={<><Btn variant="outline" onClick={onClose}>Cancel</Btn>
+        <Btn icon="check" onClick={() => { updatePatientClinical(patient.id, { conditions, allergies }); onClose(); }}>Save changes</Btn></>}>
+      <div className="space-y-5">
+        <ChipInput label="Allergies" hint="No known allergies recorded" items={allergies} setItems={setAllergies} tone="red" />
+        <div className="h-px bg-line-soft" />
+        <ChipInput label="Conditions" hint="No chronic conditions recorded" items={conditions} setItems={setConditions} tone="steel" />
+        <p className="text-[11.5px] text-warn-700 bg-warn-50 border border-warn-600/20 rounded-lg px-3 py-2 flex gap-1.5">
+          <I name="alert" className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+          Allergy changes instantly update dispensing safety checks in OPD prescribing and Pharmacy, and alert the pharmacist.
+        </p>
+      </div>
+    </Modal>
+  );
+}
 
 const blankForm = {
   firstName: "", lastName: "", dob: "1990-01-01", gender: "Female" as Patient["gender"], phone: "", email: "",
@@ -73,8 +127,11 @@ function RegisterModal({ open, onClose }: { open: boolean; onClose: () => void }
 function PatientDrawer({ patient, onClose }: { patient: Patient; onClose: () => void }) {
   const { s, go, setBookPatient, createAdmission, toast } = useApp();
   const [tab, setTab] = useState("timeline");
+  const [editClinical, setEditClinical] = useState(false);
+  const [letterId, setLetterId] = useState<string | null>(null);
   const role = s.session?.role ?? "admin";
   const canWrite = role !== "patient";
+  const canEditClinical = ["doctor", "nurse", "admin", "super"].includes(role);
 
   useEffect(() => setTab("timeline"), [patient.id]);
 
@@ -132,6 +189,19 @@ function PatientDrawer({ patient, onClose }: { patient: Patient; onClose: () => 
             ))}
           </div>
         )}
+        <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+          <I name="pulse" className="w-3.5 h-3.5 text-brand-400" />
+          {patient.conditions.length === 0 && <span className="text-[11px] text-pine-100/60">No recorded conditions</span>}
+          {patient.conditions.map((c) => (
+            <span key={c} className="bg-white/10 border border-white/15 text-pine-100 text-[10.5px] font-semibold px-2 py-0.5 rounded-md">{c}</span>
+          ))}
+          {canEditClinical && (
+            <button onClick={() => setEditClinical(true)}
+              className="ml-auto inline-flex items-center gap-1 text-[10.5px] font-bold text-brand-400 hover:text-brand-200 transition-colors">
+              <I name="edit" className="w-3 h-3" /> Edit clinical
+            </button>
+          )}
+        </div>
         {canWrite && (
           <div className="mt-3 flex gap-2">
             <Btn size="sm" icon="calendar" className="!bg-brand-500 hover:!bg-brand-400" onClick={() => { setBookPatient(patient.id); go("appointments"); }}>Book appointment</Btn>
@@ -200,6 +270,10 @@ function PatientDrawer({ patient, onClose }: { patient: Patient; onClose: () => 
                     </tbody>
                   </table>
                   {r.notes && <p className="text-[11.5px] text-ink-soft bg-paper rounded-md px-2.5 py-1.5 mt-2"><span className="font-semibold">Notes:</span> {r.notes}</p>}
+                  <div className="flex justify-end gap-2 mt-2.5">
+                    <Btn size="sm" variant="outline" icon="share" onClick={() => setLetterId(r.id)}>Share</Btn>
+                    <Btn size="sm" variant="dark" icon="download" onClick={() => setLetterId(r.id)}>Letter</Btn>
+                  </div>
                 </div>
               </Card>
             ))}
@@ -273,6 +347,12 @@ function PatientDrawer({ patient, onClose }: { patient: Patient; onClose: () => 
           </Card>
         )}
       </div>
+
+      {editClinical && <ClinicalEditor patient={patient} onClose={() => setEditClinical(false)} />}
+      {letterId && (() => {
+        const rx = s.prescriptions.find((r) => r.id === letterId);
+        return rx ? <RxLetterModal rx={rx} onClose={() => setLetterId(null)} /> : null;
+      })()}
     </Drawer>
   );
 }

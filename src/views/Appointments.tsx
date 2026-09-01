@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useApp } from "../lib/store";
-import { SLOT_TIMES, dayLabel, deptName, fullName } from "../lib/data";
+import { SLOT_TIMES, dayLabel, deptName, fmtMoney0, fullName } from "../lib/data";
 import type { ApptStatus } from "../lib/data";
 import { Avatar, Btn, Card, EmptyState, Field, Modal, Pill, Select, TextInput, APPT_META } from "../components/ui";
 import { I } from "../components/icons";
@@ -75,7 +75,7 @@ function BookModal({ open, onClose }: { open: boolean; onClose: () => void }) {
       <div className="mt-4">
         <div className="flex items-center justify-between mb-1.5">
           <p className="micro text-ink-soft">Available slots · {doctor?.name}</p>
-          <p className="text-[11px] text-ink-faint">{doctor?.specialization} · fee ${doctor?.fee}</p>
+          <p className="text-[11px] text-ink-faint">{doctor?.specialization} · fee {fmtMoney0(doctor?.fee ?? 0)}</p>
         </div>
         <div className="grid grid-cols-5 sm:grid-cols-8 gap-1.5">
           {SLOT_TIMES.map((t) => {

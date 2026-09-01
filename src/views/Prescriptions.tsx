@@ -3,12 +3,14 @@ import { useApp } from "../lib/store";
 import { fmtMoney, fullName, timeAgo } from "../lib/data";
 import { Avatar, Btn, Card, EmptyState, Pill } from "../components/ui";
 import { I } from "../components/icons";
+import { RxLetterModal } from "../components/RxLetter";
 
 export function Prescriptions() {
   const { s, dispense } = useApp();
   const role = s.session?.role ?? "doctor";
   const [filter, setFilter] = useState<"all" | "sent" | "dispensed">("all");
   const [expanded, setExpanded] = useState<string | null>(s.prescriptions[0]?.id ?? null);
+  const [letterId, setLetterId] = useState<string | null>(null);
 
   const list = s.prescriptions.filter((r) => filter === "all" || r.status === filter);
   const isPharmacist = role === "pharmacist" || role === "admin" || role === "super";
@@ -81,12 +83,16 @@ export function Prescriptions() {
                     </tbody>
                   </table>
                   {rx.notes && <p className="text-[11.5px] text-ink-soft mt-2 italic">“{rx.notes}”</p>}
-                  <div className="flex justify-end mt-2">
-                    {rx.status === "sent" && isPharmacist && (
-                      <Btn size="sm" icon="check" onClick={() => dispense(rx.id)}>Dispense now</Btn>
-                    )}
+                  <div className="flex flex-wrap items-center gap-2 mt-2.5">
                     {rx.status === "sent" && !isPharmacist && <Pill tone="amber">awaiting pharmacy</Pill>}
                     {rx.status === "dispensed" && <Pill tone="green">completed</Pill>}
+                    <div className="ml-auto flex flex-wrap gap-2">
+                      <Btn size="sm" variant="outline" icon="share" onClick={() => setLetterId(rx.id)}>Share</Btn>
+                      <Btn size="sm" variant="dark" icon="download" onClick={() => setLetterId(rx.id)}>Patient letter</Btn>
+                      {rx.status === "sent" && isPharmacist && (
+                        <Btn size="sm" icon="check" onClick={() => dispense(rx.id)}>Dispense now</Btn>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
@@ -94,6 +100,11 @@ export function Prescriptions() {
           );
         })}
       </div>
+
+      {letterId && (() => {
+        const rx = s.prescriptions.find((r) => r.id === letterId);
+        return rx ? <RxLetterModal rx={rx} onClose={() => setLetterId(null)} /> : null;
+      })()}
     </div>
   );
 }

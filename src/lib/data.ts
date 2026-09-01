@@ -60,7 +60,7 @@ export const MODULE_ROLES: Record<ModuleId, Role[]> = {
   patients: ["super", "admin", "reception", "doctor", "nurse"],
   appointments: ["super", "admin", "reception", "doctor", "nurse", "patient"],
   opd: ["super", "admin", "reception", "doctor", "nurse"],
-  prescriptions: ["super", "admin", "doctor", "nurse", "pharmacist"],
+  prescriptions: ["super", "admin", "reception", "doctor", "nurse", "pharmacist"],
   lab: ["super", "admin", "doctor", "lab", "radiology"],
   wards: ["super", "admin", "doctor", "nurse"],
   pharmacy: ["super", "admin", "pharmacist"],
@@ -250,10 +250,15 @@ export const AVATAR_COLORS = ["#0e8262", "#38688f", "#b4690e", "#be4b32", "#2f8f
 let uidCounter = 1000;
 export const uid = (prefix: string) => `${prefix}-${(++uidCounter).toString(36).toUpperCase()}${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
 
-export const fmtMoney = (n: number) =>
-  "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+/* All ledger values are stored in base units and rendered in Indian Rupees
+   (₹, en-IN lakh/crore grouping) through a single conversion constant so
+   bills, payments and reports stay internally consistent. */
+export const INR_RATE = 60;
 
-export const fmtMoney0 = (n: number) => "$" + Math.round(n).toLocaleString("en-US");
+export const fmtMoney = (n: number) =>
+  "₹" + (n * INR_RATE).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+export const fmtMoney0 = (n: number) => "₹" + Math.round(n * INR_RATE).toLocaleString("en-IN");
 
 export const dayISO = (offset = 0) => {
   const d = new Date();
@@ -580,7 +585,7 @@ export const makeSeed = (): SeedData => {
     { id: "au1", user: "Ingrid Sørensen", role: "lab", action: "Entered results", entity: "LAB-3311 · Amara Singh", at: iso(0, 9, 48), ip: "10.4.2.31" },
     { id: "au2", user: "Jonah Kim, RN", role: "nurse", action: "Recorded vitals", entity: "PT-1041 · Amara Singh", at: iso(0, 9, 40), ip: "10.4.2.18" },
     { id: "au3", user: "Marta Silva", role: "reception", action: "Checked-in patient", entity: "APT a6 · Nadia Rahman", at: iso(0, 10, 21), ip: "10.4.1.05" },
-    { id: "au4", user: "Renata Costa", role: "billing", action: "Recorded payment $500", entity: "INV-3198 · Marco Bianchi", at: iso(-1, 10, 0), ip: "10.4.1.11" },
+    { id: "au4", user: "Renata Costa", role: "billing", action: "Recorded payment ₹30,000", entity: "INV-3198 · Marco Bianchi", at: iso(-1, 10, 0), ip: "10.4.1.11" },
     { id: "au5", user: "Yusuf Bello", role: "pharmacist", action: "Dispensed RX-8839", entity: "PT-1050 · Marco Bianchi", at: iso(-1, 9, 30), ip: "10.4.3.02" },
     { id: "au6", user: "Dr. Samuel Ortiz", role: "doctor", action: "Completed consultation", entity: "PT-1042 · Daniel Reyes", at: iso(0, 9, 24), ip: "10.4.2.44" },
     { id: "au7", user: "Adaeze Okafor", role: "super", action: "Exported revenue report", entity: "Financial · daily collection", at: iso(-1, 17, 5), ip: "10.4.0.02" },
