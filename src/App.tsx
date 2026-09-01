@@ -65,7 +65,7 @@ function SignIn() {
         <div className="flex items-center gap-3">
           <PulseMark className="w-10 h-10" />
           <div className="min-w-0">
-            <p className="font-display font-extrabold text-xl tracking-tight leading-none">AURELIA<span className="text-brand-400"> HMS</span></p>
+            <p className="font-display font-extrabold text-xl tracking-tight leading-none">IT CYBER<span className="text-brand-400"> HMS</span></p>
             <p className="micro text-brand-400/80 mt-1 truncate" title={s.hospitalName}>{s.hospitalName}</p>
           </div>
         </div>

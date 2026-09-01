@@ -1,5 +1,5 @@
 /* ============================================================
-   Aurelia HMS — domain types, seed data, helpers
+   IT Cyber HMS — domain types, seed data, helpers
    ============================================================ */
 
 export type Role =
