@@ -57,7 +57,8 @@ export function Prescriptions() {
               </button>
               {open && (
                 <div className="pop-in border-t border-line-soft px-4 py-3 bg-paper/50">
-                  <table className="w-full text-[12.5px]">
+                  <div className="overflow-x-auto scroll-slim -mx-1 px-1">
+                  <table className="w-full text-[12.5px] min-w-[430px]">
                     <thead>
                       <tr className="micro text-ink-faint text-left">
                         <th className="pb-2 font-medium">Medicine</th>
@@ -82,6 +83,7 @@ export function Prescriptions() {
                       })}
                     </tbody>
                   </table>
+                  </div>
                   {rx.notes && <p className="text-[11.5px] text-ink-soft mt-2 italic">“{rx.notes}”</p>}
                   <div className="flex flex-wrap items-center gap-2 mt-2.5">
                     {rx.status === "sent" && !isPharmacist && <Pill tone="amber">awaiting pharmacy</Pill>}

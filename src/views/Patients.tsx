@@ -253,7 +253,8 @@ function PatientDrawer({ patient, onClose }: { patient: Patient; onClose: () => 
                 title={<span className="flex items-center gap-2">{r.code}<Pill tone={r.status === "dispensed" ? "green" : "amber"}>{r.status}</Pill></span>}
                 sub={`${s.doctors.find((d) => d.id === r.doctorId)?.name} · ${timeAgo(r.createdAt)}`}>
                 <div className="p-3 pt-0">
-                  <table className="w-full text-[12px]">
+                  <div className="overflow-x-auto scroll-slim">
+                  <table className="w-full text-[12px] min-w-[360px]">
                     <thead><tr className="micro text-ink-faint text-left"><th className="pb-1.5 font-medium">Medicine</th><th className="pb-1.5 font-medium">Dosage</th><th className="pb-1.5 font-medium">Freq</th><th className="pb-1.5 font-medium text-right">Qty</th></tr></thead>
                     <tbody>
                       {r.items.map((it, i) => {
@@ -269,6 +270,7 @@ function PatientDrawer({ patient, onClose }: { patient: Patient; onClose: () => 
                       })}
                     </tbody>
                   </table>
+                  </div>
                   {r.notes && <p className="text-[11.5px] text-ink-soft bg-paper rounded-md px-2.5 py-1.5 mt-2"><span className="font-semibold">Notes:</span> {r.notes}</p>}
                   <div className="flex justify-end gap-2 mt-2.5">
                     <Btn size="sm" variant="outline" icon="share" onClick={() => setLetterId(r.id)}>Share</Btn>

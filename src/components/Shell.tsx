@@ -54,8 +54,8 @@ function GlobalSearch() {
         value={q}
         onChange={(e) => { setQ(e.target.value); setOpen(true); }}
         onFocus={() => setOpen(true)}
-        placeholder="Search patients, doctors, medicines…"
-        className="w-full bg-white border border-line rounded-lg pl-9 pr-3 py-2 text-[13px] outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 transition-shadow placeholder:text-ink-faint/70"
+        placeholder="Search patients, doctors…"
+        className="w-full bg-white border border-line rounded-lg pl-9 pr-3 py-2 text-[16px] sm:text-[13px] outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 transition-shadow placeholder:text-ink-faint/70"
       />
       {open && results && (
         <div className="pop-in absolute left-0 right-0 top-full mt-1.5 bg-card border border-line rounded-xl shadow-xl overflow-hidden z-40">
@@ -282,9 +282,15 @@ export function Shell({ children }: { children: ReactNode }) {
       {navOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div className="absolute inset-0 bg-pine-950/60 backdrop-blur-[2px]" onClick={() => setNavOpen(false)} />
-          <aside className="drawer-in absolute left-0 top-0 bottom-0 w-[260px] bg-pine-900 pine-tex text-pine-100 flex flex-col shadow-2xl">
-            <div className="flex items-center justify-between pr-2">
-              {brand}
+          <aside className="drawer-in absolute left-0 top-0 bottom-0 w-[260px] max-w-[85vw] bg-pine-900 pine-tex text-pine-100 flex flex-col shadow-2xl">
+            <div className="h-16 flex items-center justify-between pr-2 border-b border-white/8 shrink-0">
+              <div className="flex items-center gap-2.5 px-4 min-w-0">
+                <PulseMark className="w-8 h-8 shrink-0" />
+                <div className="leading-none min-w-0">
+                  <p className="font-display font-extrabold text-[14px] text-white tracking-tight truncate">AURELIA<span className="text-brand-400"> HMS</span></p>
+                  <p className="micro text-brand-400/70 truncate" title={s.hospitalName}>{s.hospitalName}</p>
+                </div>
+              </div>
               <button onClick={() => setNavOpen(false)} className="w-9 h-9 grid place-items-center rounded-lg text-pine-100/70 hover:text-white hover:bg-white/10 transition-colors" aria-label="Close menu">
                 <I name="x" className="w-4 h-4" />
               </button>
@@ -344,7 +350,7 @@ export function Shell({ children }: { children: ReactNode }) {
       <RenameModal open={renameOpen} onClose={() => setRenameOpen(false)} />
 
       {/* ---------- toasts ---------- */}
-      <div className="fixed bottom-3 right-3 sm:bottom-4 sm:right-4 z-[60] flex flex-col gap-2 w-[calc(100vw-1.5rem)] max-w-[330px]">
+      <div className="fixed bottom-3 right-3 sm:bottom-4 sm:right-4 z-[60] flex flex-col gap-2 w-[calc(100vw-1.5rem)] max-w-[330px]" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
         {toasts.map((t) => {
           const m = toastMeta[t.kind];
           return (
