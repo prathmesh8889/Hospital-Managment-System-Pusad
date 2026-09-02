@@ -2,10 +2,12 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { ReactNode } from "react";
 import {
   makeSeed, uid, nowISO, ROLE_MAP, billTotals, fullName, fmtMoney, LAB_CATALOG, CREDENTIALS,
+  MODULES, makeDefaultRolePermissions,
 } from "./data";
 import type {
   SeedData, Role, ModuleId, Appointment, Consultation, Prescription, PrescriptionItem,
   LabAnalyte, LabOrder, Bill, BillItem, Payment, Bed, Admission, AppNotification, AuditEvent, Vitals,
+  PermissionAction, RolePermissions,
 } from "./data";
 
 export interface ProfileOverride { name?: string; phone?: string; email?: string }
@@ -19,6 +21,7 @@ export interface AppState extends SeedData {
   hospitalName: string;
   profiles: Partial<Record<Role, ProfileOverride>>;
   passwordOverrides: Partial<Record<Role, string>>;
+  rolePermissions: RolePermissions;
 }
 
 export interface Toast { id: number; kind: "success" | "error" | "info" | "warning"; title: string; desc?: string; }
@@ -66,6 +69,11 @@ interface AppCtx {
   recordPayment: (billId: string, amount: number, method: Payment["method"]) => void;
   submitClaim: (billId: string) => void;
   createBill: (patientId: string, items: BillItem[]) => void;
+  updateBill: (billId: string, patch: Pick<Bill, "items" | "discount" | "taxRate" | "status" | "claimStatus">) => void;
+  hasPermission: (module: ModuleId, action?: PermissionAction, role?: Role) => boolean;
+  setRolePermission: (role: Role, module: ModuleId, action: PermissionAction, enabled: boolean) => void;
+  applyPermissionPreset: (role: Role, preset: "none" | "read" | "full" | "default") => void;
+  resetRolePermissions: () => void;
   restock: (medicineId: string, qty: number) => void;
   adjustInventory: (itemId: string, qty: number) => void;
   createPO: (itemId: string, qty: number, supplierId: string) => void;
@@ -89,6 +97,7 @@ const freshState = (): AppState => ({
   hospitalName: DEFAULT_HOSPITAL,
   profiles: {},
   passwordOverrides: {},
+  rolePermissions: makeDefaultRolePermissions(),
 });
 
 const loadState = (): AppState => {
@@ -98,6 +107,16 @@ const loadState = (): AppState => {
       const parsed = JSON.parse(raw) as AppState;
       if (parsed && parsed.patients && parsed.medicines && parsed.session !== undefined) {
         const state = { ...freshState(), ...parsed };
+        const defaults = makeDefaultRolePermissions();
+        state.rolePermissions = defaults;
+        (Object.keys(defaults) as Role[]).forEach((role) => {
+          MODULES.forEach((module) => {
+            state.rolePermissions[role][module.id] = {
+              ...defaults[role][module.id],
+              ...(parsed.rolePermissions?.[role]?.[module.id] ?? {}),
+            };
+          });
+        });
         // rebrand: upgrade saved facility name unless the user set a custom one
         if (state.hospitalName === LEGACY_HOSPITAL) state.hospitalName = DEFAULT_HOSPITAL;
         return state;
@@ -144,7 +163,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setS((prev) => ({
       ...prev,
       session: { role, userId: ROLE_MAP[role].name },
-      view: role === "patient" ? "portal" : "dashboard",
+      view: prev.rolePermissions[role]?.[role === "patient" ? "portal" : "dashboard"]?.view
+        ? (role === "patient" ? "portal" : "dashboard")
+        : (MODULES.find((module) => prev.rolePermissions[role]?.[module.id]?.view)?.id ?? "dashboard"),
       audit: [{ id: uid("AU"), user: ROLE_MAP[role].name, role, action: "Signed in", entity: "Session · " + ROLE_MAP[role].label, at: nowISO(), ip: "10.4.2.21" }, ...prev.audit].slice(0, 120),
     }));
     toast("success", `Signed in as ${ROLE_MAP[role].name}`, ROLE_MAP[role].scope);
@@ -242,8 +263,82 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [toast]);
 
   const go = useCallback((view: ModuleId, focusPatientId: string | null = null) => {
-    setS((prev) => ({ ...prev, view, focusPatientId }));
+    setS((prev) => {
+      const role = prev.session?.role;
+      if (role && !prev.rolePermissions[role]?.[view]?.view) return prev;
+      return { ...prev, view, focusPatientId };
+    });
   }, []);
+
+  const hasPermission = useCallback(
+    (module: ModuleId, action: PermissionAction = "view", roleOverride?: Role) => {
+      const role = roleOverride ?? s.session?.role;
+      if (!role) return false;
+      if (role === "super") return true;
+      return Boolean(s.rolePermissions[role]?.[module]?.[action]);
+    },
+    [s.rolePermissions, s.session?.role]
+  );
+
+  const setRolePermission = useCallback(
+    (role: Role, module: ModuleId, action: PermissionAction, enabled: boolean) => {
+      if (role === "super" || module === "access") {
+        toast("warning", "Protected permission", "Super Admin access control cannot be disabled.");
+        return;
+      }
+      setS((prev) => {
+        const current = prev.rolePermissions[role][module];
+        const next = action === "view" && !enabled
+          ? { view: false, edit: false }
+          : action === "edit" && enabled
+            ? { view: true, edit: true }
+            : { ...current, [action]: enabled };
+        const nextState = {
+          ...prev,
+          rolePermissions: {
+            ...prev.rolePermissions,
+            [role]: { ...prev.rolePermissions[role], [module]: next },
+          },
+        };
+        return withMeta(nextState, "Changed role permission", `${ROLE_MAP[role].label} · ${module} · ${action} ${enabled ? "enabled" : "disabled"}`);
+      });
+    },
+    [toast, withMeta]
+  );
+
+  const applyPermissionPreset = useCallback(
+    (role: Role, preset: "none" | "read" | "full" | "default") => {
+      if (role === "super") return;
+      setS((prev) => {
+        const defaults = makeDefaultRolePermissions();
+        const next = { ...prev.rolePermissions[role] };
+        MODULES.forEach((module) => {
+          if (module.id === "access") {
+            next[module.id] = { view: false, edit: false };
+          } else if (preset === "default") {
+            next[module.id] = defaults[role][module.id];
+          } else {
+            next[module.id] = {
+              view: preset !== "none",
+              edit: preset === "full",
+            };
+          }
+        });
+        return withMeta(
+          { ...prev, rolePermissions: { ...prev.rolePermissions, [role]: next } },
+          "Applied permission preset",
+          `${ROLE_MAP[role].label} · ${preset}`
+        );
+      });
+      toast("success", "Role access updated", `${ROLE_MAP[role].label} now uses the ${preset} preset.`);
+    },
+    [toast, withMeta]
+  );
+
+  const resetRolePermissions = useCallback(() => {
+    setS((prev) => withMeta({ ...prev, rolePermissions: makeDefaultRolePermissions() }, "Reset role permissions", "All roles · system defaults"));
+    toast("success", "Default permissions restored", "All page and edit permissions were reset.");
+  }, [toast, withMeta]);
 
   const setBookPatient = useCallback((id: string | null) => setS((prev) => ({ ...prev, bookPatientId: id })), []);
   const setBranch = useCallback((id: string) => setS((prev) => ({ ...prev, branchId: id })), []);
@@ -702,6 +797,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [withMeta]
   );
 
+  const updateBill = useCallback(
+    (billId: string, patch: Pick<Bill, "items" | "discount" | "taxRate" | "status" | "claimStatus">) => {
+      setS((prev) => {
+        const bill = prev.bills.find((item) => item.id === billId);
+        if (!bill) return prev;
+        return withMeta(
+          { ...prev, bills: prev.bills.map((item) => item.id === billId ? { ...item, ...patch } : item) },
+          "Edited invoice",
+          `${bill.code} · ${patch.items.length} line item(s)`
+        );
+      });
+      toast("success", "Invoice updated", "Line items, totals and status were saved.");
+    },
+    [toast, withMeta]
+  );
+
   const recordPayment = useCallback(
     (billId: string, amount: number, method: Payment["method"]) => {
       setS((prev) => {
@@ -799,14 +910,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     markRead, markAllRead, registerPatient, updatePatientClinical, bookAppointment, cancelAppointment, checkIn,
     startConsult, saveVitals, updateConsult, completeConsult, sendPrescription, dispense,
     orderLab, advanceLab, saveLabResults, verifyLab, setImaging, createAdmission, assignBed,
-    discharge, setBedStatus, addProgressNote, recordPayment, submitClaim, createBill,
+    discharge, setBedStatus, addProgressNote, recordPayment, submitClaim, createBill, updateBill,
+    hasPermission, setRolePermission, applyPermissionPreset, resetRolePermissions,
     restock, adjustInventory, createPO, receivePO,
   }), [s, toasts, dismiss, toast, signIn, signOut, attemptLogin, updateProfile, changePassword, updatePatientContact, effectiveCredentials,
     reset, go, setBookPatient, setBranch, setHospitalName, markRead, markAllRead,
     registerPatient, updatePatientClinical, bookAppointment, cancelAppointment, checkIn, startConsult, saveVitals, updateConsult,
     completeConsult, sendPrescription, dispense, orderLab, advanceLab, saveLabResults, verifyLab, setImaging,
     createAdmission, assignBed, discharge, setBedStatus, addProgressNote, recordPayment, submitClaim,
-    createBill, restock, adjustInventory, createPO, receivePO]);
+    createBill, updateBill, hasPermission, setRolePermission, applyPermissionPreset, resetRolePermissions,
+    restock, adjustInventory, createPO, receivePO]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

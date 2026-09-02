@@ -18,6 +18,7 @@ import { Wards } from "./views/Wards";
 import { Billing } from "./views/Billing";
 import { Reports } from "./views/Reports";
 import { Portal } from "./views/Portal";
+import { AccessControl } from "./views/AccessControl";
 
 function SignIn() {
   const { s, attemptLogin, effectiveCredentials } = useApp();
@@ -203,7 +204,19 @@ function SignIn() {
 }
 
 function Router() {
-  const { s } = useApp();
+  const { s, hasPermission, go } = useApp();
+  if (!hasPermission(s.view, "view")) {
+    return (
+      <div className="min-h-[55vh] grid place-items-center">
+        <div className="max-w-md text-center bg-card border border-line rounded-xl p-6">
+          <span className="w-12 h-12 mx-auto rounded-xl bg-danger-50 text-danger-600 grid place-items-center"><I name="lock" className="w-6 h-6" /></span>
+          <h1 className="font-display font-extrabold text-xl text-ink mt-3">Page access removed</h1>
+          <p className="text-[13px] text-ink-soft mt-1.5">Your Super Administrator has changed this role's page permissions.</p>
+          <Btn className="mt-4" onClick={() => go("dashboard")}>Return to dashboard</Btn>
+        </div>
+      </div>
+    );
+  }
   switch (s.view) {
     case "portal": return <Portal />;
     case "command": return <CommandCenter />;
@@ -217,13 +230,15 @@ function Router() {
     case "billing": return <Billing />;
     case "inventory": return <InventoryPage />;
     case "reports": return <Reports />;
+    case "access": return <AccessControl />;
     default: return <Dashboard />;
   }
 }
 
 function InventoryPage() {
-  const { s, adjustInventory, createPO, receivePO } = useApp();
+  const { s, adjustInventory, createPO, receivePO, hasPermission } = useApp();
   const role = s.session?.role ?? "admin";
+  const canEdit = hasPermission("inventory", "edit");
   return (
     <div className="space-y-4">
       <div>
@@ -262,12 +277,15 @@ function InventoryPage() {
                       </td>
                       <td className="px-3 py-2.5">
                         <div className="flex justify-end gap-1.5">
+                          {!canEdit && <span className="text-[10.5px] text-ink-faint">Read only</span>}
+                          {canEdit && <>
                           <button onClick={() => adjustInventory(it.id, 10)} className="px-2 py-1 rounded-md bg-line-soft text-[11px] font-bold text-ink-soft hover:bg-brand-100 hover:text-brand-700 transition-colors">+10</button>
                           <button onClick={() => adjustInventory(it.id, -5)} className="px-2 py-1 rounded-md bg-line-soft text-[11px] font-bold text-ink-soft hover:bg-danger-100 hover:text-danger-700 transition-colors">−5</button>
                           {low && (
                             <button onClick={() => createPO(it.id, it.reorder * 2, s.suppliers[0].id)}
                               className="px-2 py-1 rounded-md bg-danger-600 text-[11px] font-bold text-white hover:bg-danger-700 transition-colors">Reorder</button>
                           )}
+                          </>}
                         </div>
                       </td>
                     </tr>
@@ -294,7 +312,7 @@ function InventoryPage() {
                     </div>
                     <p className="text-[11.5px] text-ink-soft mt-1">{item?.name} ×{po.qty}</p>
                     <p className="micro text-ink-faint mt-0.5">{sup?.name}</p>
-                    {po.status === "ordered" && (role === "admin" || role === "super" || role === "pharmacist") && (
+                    {po.status === "ordered" && canEdit && (role === "admin" || role === "super" || role === "pharmacist" || canEdit) && (
                       <button onClick={() => receivePO(po.id)} className="mt-2 w-full py-1.5 rounded-md bg-pine-900 text-brand-200 text-[11px] font-bold hover:bg-pine-800 transition-colors">
                         Mark goods received
                       </button>

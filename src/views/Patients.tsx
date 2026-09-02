@@ -125,13 +125,13 @@ function RegisterModal({ open, onClose }: { open: boolean; onClose: () => void }
 }
 
 function PatientDrawer({ patient, onClose }: { patient: Patient; onClose: () => void }) {
-  const { s, go, setBookPatient, createAdmission, toast } = useApp();
+  const { s, go, setBookPatient, createAdmission, toast, hasPermission } = useApp();
   const [tab, setTab] = useState("timeline");
   const [editClinical, setEditClinical] = useState(false);
   const [letterId, setLetterId] = useState<string | null>(null);
   const role = s.session?.role ?? "admin";
-  const canWrite = role !== "patient";
-  const canEditClinical = ["doctor", "nurse", "admin", "super"].includes(role);
+  const canWrite = role !== "patient" && hasPermission("patients", "edit");
+  const canEditClinical = hasPermission("patients", "edit") && ["doctor", "nurse", "admin", "super"].includes(role);
 
   useEffect(() => setTab("timeline"), [patient.id]);
 
@@ -360,7 +360,7 @@ function PatientDrawer({ patient, onClose }: { patient: Patient; onClose: () => 
 }
 
 export function Patients() {
-  const { s } = useApp();
+  const { s, hasPermission } = useApp();
   const focusPatientId = s.focusPatientId;
   const [q, setQ] = useState("");
   const [showReg, setShowReg] = useState(false);
@@ -394,7 +394,7 @@ export function Patients() {
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, ID, phone…"
               className="bg-white border border-line rounded-lg pl-9 pr-3 py-2 text-[16px] sm:text-[13px] w-full sm:w-[280px] outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 transition-shadow" />
           </div>
-          {(role === "reception" || role === "admin" || role === "super") && (
+          {hasPermission("patients", "edit") && (role === "reception" || role === "admin" || role === "super") && (
             <Btn icon="plus" onClick={() => setShowReg(true)}>New patient</Btn>
           )}
         </div>

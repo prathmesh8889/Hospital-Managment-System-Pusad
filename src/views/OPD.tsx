@@ -203,7 +203,7 @@ function LabOrderPanel({ patientId, doctorId }: { patientId: string; doctorId: s
 }
 
 export function OPD() {
-  const { s, startConsult, saveVitals, updateConsult, completeConsult, checkIn, toast } = useApp();
+  const { s, startConsult, saveVitals, updateConsult, completeConsult, checkIn, toast, hasPermission } = useApp();
   const role = s.session?.role ?? "admin";
   const [, forceTick] = useState(0);
   const [activeApptId, setActiveApptId] = useState<string | null>(null);
@@ -223,8 +223,9 @@ export function OPD() {
   const consult = active ? s.consultations.find((c) => c.appointmentId === active.id) : undefined;
   const patient = active ? s.patients.find((p) => p.id === active.patientId) : undefined;
 
-  const isDoctor = role === "doctor" || role === "admin" || role === "super";
-  const isNurse = role === "nurse" || role === "admin" || role === "super";
+  const canEdit = hasPermission("opd", "edit");
+  const isDoctor = canEdit && (role === "doctor" || role === "admin" || role === "super");
+  const isNurse = canEdit && (role === "nurse" || role === "admin" || role === "super");
 
   const finish = () => {
     if (!consult) return;
@@ -295,7 +296,7 @@ export function OPD() {
                   <li key={a.id} className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-brand-50/70 transition-colors">
                     <span className="font-mono text-[11.5px] font-semibold text-ink-soft w-10">{a.time}</span>
                     <span className="text-[12.5px] text-ink truncate">{p ? fullName(p) : "—"}</span>
-                    {(role === "reception" || role === "admin" || role === "super") && (
+                    {canEdit && (role === "reception" || role === "admin" || role === "super") && (
                       <button onClick={() => checkIn(a.id)} className="ml-auto text-[10px] font-bold text-brand-700 hover:underline shrink-0">check-in</button>
                     )}
                   </li>

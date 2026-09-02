@@ -9,7 +9,11 @@ export type Role =
 export type ModuleId =
   | "dashboard" | "command" | "portal" | "patients" | "appointments" | "opd"
   | "prescriptions" | "lab" | "wards" | "pharmacy" | "billing"
-  | "inventory" | "reports";
+  | "inventory" | "reports" | "access";
+
+export type PermissionAction = "view" | "edit";
+export interface ModulePermission { view: boolean; edit: boolean; }
+export type RolePermissions = Record<Role, Record<ModuleId, ModulePermission>>;
 
 export interface RoleMeta {
   id: Role; label: string; name: string; title: string; color: string; scope: string;
@@ -67,6 +71,7 @@ export const MODULE_ROLES: Record<ModuleId, Role[]> = {
   billing: ["super", "admin", "reception", "billing", "patient"],
   inventory: ["super", "admin", "pharmacist"],
   reports: ["super", "admin", "billing", "doctor"],
+  access: ["super"],
 };
 
 export const MODULES: { id: ModuleId; label: string; icon: string; group: string }[] = [
@@ -83,7 +88,28 @@ export const MODULES: { id: ModuleId; label: string; icon: string; group: string
   { id: "billing", label: "Billing", icon: "receipt", group: "Operations" },
   { id: "inventory", label: "Inventory", icon: "box", group: "Operations" },
   { id: "reports", label: "Reports & Audit", icon: "chart", group: "Insight" },
+  { id: "access", label: "Roles & Access", icon: "shield", group: "Administration" },
 ];
+
+export const makeDefaultRolePermissions = (): RolePermissions => {
+  const permissions = {} as RolePermissions;
+  ROLES.forEach((role) => {
+    permissions[role.id] = {} as Record<ModuleId, ModulePermission>;
+    MODULES.forEach((module) => {
+      const view = MODULE_ROLES[module.id].includes(role.id);
+      permissions[role.id][module.id] = { view, edit: view && role.id !== "patient" };
+    });
+  });
+
+  // The Super Administrator can never be locked out of access control.
+  MODULES.forEach((module) => {
+    permissions.super[module.id] = { view: true, edit: true };
+  });
+  permissions.patient.portal = { view: true, edit: true };
+  permissions.patient.appointments = { view: true, edit: true };
+  permissions.patient.billing = { view: true, edit: true };
+  return permissions;
+};
 
 export const BRANCHES = [
   { id: "main", name: "Main Campus", city: "Harbor District" },

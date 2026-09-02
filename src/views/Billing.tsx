@@ -1,9 +1,74 @@
 import { useMemo, useState } from "react";
 import { useApp } from "../lib/store";
 import { billTotals, fmtDate, fmtMoney, fullName } from "../lib/data";
-import type { Bill, Payment } from "../lib/data";
+import type { Bill, BillItem, BillStatus, Payment } from "../lib/data";
 import { Avatar, Btn, Card, Drawer, EmptyState, Field, Modal, Pill, Select, TextInput, BILL_META } from "../components/ui";
 import { I } from "../components/icons";
+
+function EditBillModal({ bill, onClose }: { bill: Bill; onClose: () => void }) {
+  const { updateBill, toast } = useApp();
+  const [items, setItems] = useState<BillItem[]>(bill.items.map((item) => ({ ...item })));
+  const [discount, setDiscount] = useState(String(bill.discount));
+  const [taxRate, setTaxRate] = useState(String(bill.taxRate));
+  const [status, setStatus] = useState<BillStatus>(bill.status);
+  const [claimStatus, setClaimStatus] = useState<Bill["claimStatus"]>(bill.claimStatus);
+
+  const patchItem = (index: number, patch: Partial<BillItem>) => {
+    setItems((current) => current.map((item, i) => i === index ? { ...item, ...patch } : item));
+  };
+
+  const save = () => {
+    const cleanItems = items
+      .map((item) => ({ ...item, desc: item.desc.trim(), qty: Math.max(1, Number(item.qty) || 1), price: Math.max(0, Number(item.price) || 0) }))
+      .filter((item) => item.desc);
+    if (cleanItems.length === 0) {
+      toast("error", "Add at least one line item", "Every invoice needs a description and amount.");
+      return;
+    }
+    updateBill(bill.id, {
+      items: cleanItems,
+      discount: Math.max(0, Number(discount) || 0),
+      taxRate: Math.min(100, Math.max(0, Number(taxRate) || 0)),
+      status,
+      claimStatus,
+    });
+    onClose();
+  };
+
+  return (
+    <Modal open onClose={onClose} title={`Edit invoice · ${bill.code}`} sub="Super Admin can change services, quantities, rates, discount, tax and status"
+      footer={<><Btn variant="outline" onClick={onClose}>Cancel</Btn><Btn icon="check" onClick={save}>Save invoice</Btn></>}>
+      <div className="space-y-3 max-h-[62vh] overflow-y-auto scroll-slim pr-1">
+        {items.map((item, index) => (
+          <div key={index} className="border border-line rounded-lg p-3 bg-line-soft/25">
+            <div className="flex items-center gap-2 mb-2.5">
+              <p className="micro text-ink-faint">Line item {index + 1}</p>
+              {items.length > 1 && <button onClick={() => setItems((current) => current.filter((_, i) => i !== index))} className="ml-auto text-danger-600 hover:text-danger-700" aria-label="Remove line item"><I name="trash" className="w-4 h-4" /></button>}
+            </div>
+            <div className="grid sm:grid-cols-[minmax(0,1fr)_130px] gap-2.5">
+              <Field label="Service / description"><TextInput value={item.desc} onChange={(e) => patchItem(index, { desc: e.target.value })} /></Field>
+              <Field label="Type"><Select value={item.kind} onChange={(e) => patchItem(index, { kind: e.target.value as BillItem["kind"] })}>
+                <option value="consultation">Consultation</option><option value="medicine">Medicine</option><option value="lab">Lab</option><option value="imaging">Imaging</option><option value="bed">Bed</option><option value="service">Service</option>
+              </Select></Field>
+            </div>
+            <div className="grid grid-cols-2 gap-2.5 mt-2.5">
+              <Field label="Quantity"><TextInput type="number" min="1" value={item.qty} onChange={(e) => patchItem(index, { qty: Number(e.target.value) })} /></Field>
+              <Field label="Unit price"><TextInput type="number" min="0" step="0.01" value={item.price} onChange={(e) => patchItem(index, { price: Number(e.target.value) })} /></Field>
+            </div>
+          </div>
+        ))}
+        <Btn variant="outline" size="sm" icon="plus" onClick={() => setItems((current) => [...current, { desc: "", kind: "service", qty: 1, price: 0 }])}>Add line item</Btn>
+
+        <div className="grid grid-cols-2 gap-2.5 pt-1">
+          <Field label="Discount / waiver"><TextInput type="number" min="0" step="0.01" value={discount} onChange={(e) => setDiscount(e.target.value)} /></Field>
+          <Field label="Tax %"><TextInput type="number" min="0" max="100" step="0.1" value={taxRate} onChange={(e) => setTaxRate(e.target.value)} /></Field>
+          <Field label="Invoice status"><Select value={status} onChange={(e) => setStatus(e.target.value as BillStatus)}><option value="unpaid">Unpaid</option><option value="partial">Partial</option><option value="paid">Paid</option><option value="refunded">Refunded</option></Select></Field>
+          <Field label="Claim status"><Select value={claimStatus} onChange={(e) => setClaimStatus(e.target.value as Bill["claimStatus"])}><option value="none">None</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option></Select></Field>
+        </div>
+      </div>
+    </Modal>
+  );
+}
 
 function PayModal({ bill, onClose }: { bill: Bill; onClose: () => void }) {
   const { recordPayment } = useApp();
@@ -40,14 +105,15 @@ function PayModal({ bill, onClose }: { bill: Bill; onClose: () => void }) {
 }
 
 function BillDrawer({ bill, onClose }: { bill: Bill; onClose: () => void }) {
-  const { s, submitClaim, toast } = useApp();
+  const { s, submitClaim, toast, hasPermission } = useApp();
   const role = s.session?.role ?? "billing";
   const [showPay, setShowPay] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
   const t = billTotals(bill);
   const patient = s.patients.find((p) => p.id === bill.patientId);
   const insurer = s.insurers.find((i) => i.id === patient?.insuranceProviderId);
   const meta = BILL_META[bill.status];
-  const canCollect = role === "billing" || role === "admin" || role === "super" || role === "reception" || role === "patient";
+  const canCollect = hasPermission("billing", "edit") && (role === "billing" || role === "admin" || role === "super" || role === "reception" || role === "patient");
 
   const kindIcon: Record<string, string> = { consultation: "stetho", medicine: "pill", lab: "flask", imaging: "scan", bed: "bed", service: "cross" };
 
@@ -118,6 +184,9 @@ function BillDrawer({ bill, onClose }: { bill: Bill; onClose: () => void }) {
         )}
 
         <div className="space-y-2">
+          {role === "super" && (
+            <Btn className="w-full" variant="dark" icon="edit" onClick={() => setShowEdit(true)}>Edit invoice details</Btn>
+          )}
           {t.balance > 0 && canCollect && (
             <Btn className="w-full" icon="wallet" onClick={() => setShowPay(true)}>
               {role === "patient" ? "Pay now online" : "Record payment"}
@@ -140,6 +209,7 @@ function BillDrawer({ bill, onClose }: { bill: Bill; onClose: () => void }) {
       </div>
 
       {showPay && <PayModal bill={bill} onClose={() => setShowPay(false)} />}
+      {showEdit && <EditBillModal bill={bill} onClose={() => setShowEdit(false)} />}
     </Drawer>
   );
 }

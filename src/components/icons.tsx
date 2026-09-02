@@ -18,6 +18,7 @@ const P: Record<string, ReactNode> = {
   bell: <><path d="M18 9.5a6 6 0 1 0-12 0c0 5-2 6-2 6h16s-2-1-2-6" /><path d="M10 19a2.2 2.2 0 0 0 4 0" /></>,
   search: <><circle cx="10.5" cy="10.5" r="6.5" /><path d="m20.5 20.5-4.8-4.8" /></>,
   plus: <path d="M12 5v14M5 12h14" />,
+  trash: <><path d="M4.5 7h15M9 7V4h6v3M7 7l1 13h8l1-13" /><path d="M10 11v5M14 11v5" /></>,
   x: <path d="M6 6l12 12M18 6 6 18" />,
   check: <path d="m4.5 12.5 5 5L19.5 7" />,
   clock: <><circle cx="12" cy="12" r="8.5" /><path d="M12 7v5.2l3.4 2" /></>,

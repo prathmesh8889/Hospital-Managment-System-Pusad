@@ -98,13 +98,14 @@ function BookModal({ open, onClose }: { open: boolean; onClose: () => void }) {
 }
 
 export function Appointments() {
-  const { s, checkIn, cancelAppointment, setBookPatient } = useApp();
+  const { s, checkIn, cancelAppointment, setBookPatient, hasPermission } = useApp();
   const role = s.session?.role ?? "admin";
   const [day, setDay] = useState(0);
   const [statusFilter, setStatusFilter] = useState<ApptStatus | "all">("all");
   const [showBook, setShowBook] = useState(false);
 
   const isPatient = role === "patient";
+  const canEdit = hasPermission("appointments", "edit");
   const base = useMemo(
     () => s.appointments.filter((a) => a.dayOffset === day && (!isPatient || a.patientId === "p1")),
     [s.appointments, day, isPatient]
@@ -130,11 +131,11 @@ export function Appointments() {
           <p className="micro text-brand-700">Scheduling desk</p>
           <h1 className="font-display font-extrabold text-[22px] tracking-tight text-ink">Appointments</h1>
         </div>
-        <div className="ml-auto">
+        {canEdit && <div className="ml-auto">
           <Btn icon="plus" onClick={() => { setBookPatient(null); setShowBook(true); }}>
             {isPatient ? "Book a visit" : "Book appointment"}
           </Btn>
-        </div>
+        </div>}
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -166,8 +167,8 @@ export function Appointments() {
               const p = s.patients.find((x) => x.id === a.patientId);
               const d = s.doctors.find((x) => x.id === a.doctorId);
               const meta = APPT_META[a.status];
-              const canCheckIn = a.status === "scheduled" && day === 0 && !isPatient;
-              const canCancel = a.status === "scheduled" && !isPatient;
+              const canCheckIn = canEdit && a.status === "scheduled" && day === 0 && !isPatient;
+              const canCancel = canEdit && a.status === "scheduled" && !isPatient;
               return (
                 <li key={a.id} className="fade-up flex items-center gap-3 px-4 py-3 border-b border-line-soft last:border-0 hover:bg-brand-50/60 transition-colors" style={{ animationDelay: `${Math.min(idx, 12) * 35}ms` }}>
                   <div className="w-[52px] shrink-0 text-center">

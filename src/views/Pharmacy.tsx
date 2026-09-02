@@ -5,8 +5,9 @@ import { Avatar, Btn, Card, EmptyState, Meter, Pill, Tabs } from "../components/
 import { I } from "../components/icons";
 
 export function Pharmacy() {
-  const { s, dispense, restock } = useApp();
+  const { s, dispense, restock, hasPermission } = useApp();
   const [tab, setTab] = useState("queue");
+  const canEdit = hasPermission("pharmacy", "edit");
 
   const pending = s.prescriptions.filter((r) => r.status === "sent");
   const low = s.medicines.filter((m) => m.stock <= m.reorder);
@@ -56,7 +57,7 @@ export function Pharmacy() {
               <Card key={rx.id} className="fade-up" pad={false}
                 title={<span className="flex items-center gap-2">{rx.code}<Pill tone="amber">awaiting dispense</Pill></span>}
                 sub={`${doctor?.name ?? ""} · ${timeAgo(rx.createdAt)}`}
-                action={<Btn size="sm" icon="check" onClick={() => dispense(rx.id)} style={{ animationDelay: `${idx * 40}ms` }}>Dispense</Btn>}>
+                action={canEdit ? <Btn size="sm" icon="check" onClick={() => dispense(rx.id)} style={{ animationDelay: `${idx * 40}ms` }}>Dispense</Btn> : <Pill tone="gray">read only</Pill>}>
                 <div className="p-4 pt-0 space-y-2">
                   <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 bg-paper rounded-lg px-3 py-2">
                     {patient && <Avatar name={fullName(patient)} color={patient.color} size={28} />}
@@ -135,7 +136,7 @@ export function Pharmacy() {
                         </div>
                       </td>
                       <td className="px-3 py-2.5 text-right">
-                        <Btn size="sm" variant="outline" icon="plus" onClick={() => restock(m.id, 50)}>Receive</Btn>
+                        {canEdit ? <Btn size="sm" variant="outline" icon="plus" onClick={() => restock(m.id, 50)}>Receive</Btn> : <span className="text-[10.5px] text-ink-faint">Read only</span>}
                       </td>
                     </tr>
                   );

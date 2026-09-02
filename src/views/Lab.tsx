@@ -8,14 +8,14 @@ import { I } from "../components/icons";
 const flag = (a: LabAnalyte) => (a.result !== undefined ? (a.result < a.low ? "L" : a.result > a.high ? "H" : null) : null);
 
 function ResultEntry({ order }: { order: LabOrder }) {
-  const { s, saveLabResults, verifyLab } = useApp();
+  const { s, saveLabResults, verifyLab, hasPermission } = useApp();
   const role = s.session?.role ?? "lab";
   const [vals, setVals] = useState<LabAnalyte[]>(order.analytes.map((a) => ({ ...a })));
   useEffect(() => setVals(order.analytes.map((a) => ({ ...a }))), [order.id]);
 
   const patient = s.patients.find((p) => p.id === order.patientId);
-  const canEnter = role === "lab" || role === "admin" || role === "super";
-  const canVerify = role === "doctor" || role === "admin" || role === "super";
+  const canEnter = hasPermission("lab", "edit") && (role === "lab" || role === "admin" || role === "super");
+  const canVerify = hasPermission("lab", "edit") && (role === "doctor" || role === "admin" || role === "super");
   const abnormal = vals.filter((a) => flag(a)).length;
 
   return (
@@ -78,14 +78,14 @@ function ResultEntry({ order }: { order: LabOrder }) {
 }
 
 export function Lab() {
-  const { s, advanceLab, setImaging } = useApp();
+  const { s, advanceLab, setImaging, hasPermission } = useApp();
   const role = s.session?.role ?? "lab";
   const [tab, setTab] = useState(role === "radiology" ? "imaging" : "samples");
   const [imgDrafts, setImgDrafts] = useState<Record<string, string>>({});
 
   const samples = useMemo(() => [...s.labOrders].sort((a, b) => (a.urgent === b.urgent ? 0 : a.urgent ? -1 : 1)), [s.labOrders]);
   const entryQueue = s.labOrders.filter((o) => ["processing", "completed"].includes(o.status));
-  const canMove = role === "lab" || role === "admin" || role === "super";
+  const canMove = hasPermission("lab", "edit") && (role === "lab" || role === "admin" || role === "super");
 
   const statusFlow: { st: LabOrder["status"]; label: string; n: number }[] = [
     { st: "ordered", label: "Ordered", n: s.labOrders.filter((o) => o.status === "ordered").length },
@@ -167,7 +167,7 @@ export function Lab() {
         <div className="grid md:grid-cols-2 gap-4">
           {s.imagingOrders.map((o) => {
             const p = s.patients.find((x) => x.id === o.patientId);
-            const isRad = role === "radiology" || role === "admin" || role === "super";
+            const isRad = hasPermission("lab", "edit") && (role === "radiology" || role === "admin" || role === "super");
             return (
               <Card key={o.id} pad={false}
                 title={<span className="flex items-center gap-2">{o.code} · {o.modality}<Pill tone={o.status === "reported" ? "green" : o.status === "completed" ? "pine" : "steel"}>{o.status}</Pill></span>}

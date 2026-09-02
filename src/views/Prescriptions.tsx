@@ -6,14 +6,14 @@ import { I } from "../components/icons";
 import { RxLetterModal } from "../components/RxLetter";
 
 export function Prescriptions() {
-  const { s, dispense } = useApp();
+  const { s, dispense, hasPermission } = useApp();
   const role = s.session?.role ?? "doctor";
   const [filter, setFilter] = useState<"all" | "sent" | "dispensed">("all");
   const [expanded, setExpanded] = useState<string | null>(s.prescriptions[0]?.id ?? null);
   const [letterId, setLetterId] = useState<string | null>(null);
 
   const list = s.prescriptions.filter((r) => filter === "all" || r.status === filter);
-  const isPharmacist = role === "pharmacist" || role === "admin" || role === "super";
+  const isPharmacist = hasPermission("prescriptions", "edit") && (role === "pharmacist" || role === "admin" || role === "super");
 
   return (
     <div className="space-y-4">

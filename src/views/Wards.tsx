@@ -85,11 +85,11 @@ function NewAdmissionModal({ open, onClose }: { open: boolean; onClose: () => vo
 }
 
 function BedDrawer({ bed, onClose }: { bed: Bed; onClose: () => void }) {
-  const { s, setBedStatus, addProgressNote, go } = useApp();
+  const { s, setBedStatus, addProgressNote, go, hasPermission } = useApp();
   const role = s.session?.role ?? "admin";
   const [note, setNote] = useState("");
   const [showDischarge, setShowDischarge] = useState(false);
-  const canManage = role !== "patient";
+  const canManage = role !== "patient" && hasPermission("wards", "edit");
 
   const admission = bed.admissionId ? s.admissions.find((a) => a.id === bed.admissionId) : undefined;
   const patient = bed.patientId ? s.patients.find((p) => p.id === bed.patientId) : undefined;
@@ -180,12 +180,13 @@ function BedDrawer({ bed, onClose }: { bed: Bed; onClose: () => void }) {
 }
 
 export function Wards() {
-  const { s, assignBed } = useApp();
+  const { s, assignBed, hasPermission } = useApp();
   const [wardId, setWardId] = useState("w1");
   const [selectedBed, setSelectedBed] = useState<Bed | null>(null);
   const [assignFor, setAssignFor] = useState<Admission | null>(null);
   const [showNew, setShowNew] = useState(false);
   const role = s.session?.role ?? "admin";
+  const canEdit = hasPermission("wards", "edit");
 
   const ward = s.wards.find((w) => w.id === wardId)!;
   const beds = s.beds.filter((b) => b.wardId === wardId);
@@ -203,7 +204,7 @@ export function Wards() {
           <p className="micro text-brand-700">Inpatient</p>
           <h1 className="font-display font-extrabold text-[22px] tracking-tight text-ink">Wards & bed management</h1>
         </div>
-        {role !== "patient" && (
+        {role !== "patient" && canEdit && (
           <div className="ml-auto"><Btn icon="plus" onClick={() => setShowNew(true)}>New admission</Btn></div>
         )}
       </div>
@@ -217,7 +218,7 @@ export function Wards() {
             return (
               <span key={a.id} className="flex items-center gap-2 bg-white border border-warn-600/20 rounded-lg pl-2 pr-1 py-1">
                 <span className="text-[12px] font-medium text-ink">{p ? fullName(p) : "—"}</span>
-                <Btn size="sm" variant="warn" onClick={() => setAssignFor(a)}>Assign bed</Btn>
+                {canEdit && <Btn size="sm" variant="warn" onClick={() => setAssignFor(a)}>Assign bed</Btn>}
               </span>
             );
           })}

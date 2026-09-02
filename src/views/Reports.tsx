@@ -5,7 +5,7 @@ import { Bars, Btn, Card, Donut, Pill, Sparkline, Tabs, TextInput } from "../com
 import { I } from "../components/icons";
 
 export function Reports() {
-  const { s, toast } = useApp();
+  const { s, toast, hasPermission } = useApp();
   const role = s.session?.role ?? "admin";
   const [tab, setTab] = useState("ops");
   const [auditQ, setAuditQ] = useState("");
@@ -33,11 +33,11 @@ export function Reports() {
           <p className="micro text-brand-700">Insight</p>
           <h1 className="font-display font-extrabold text-[22px] tracking-tight text-ink">Reports & analytics</h1>
         </div>
-        <div className="ml-auto">
+        {hasPermission("reports", "edit") && <div className="ml-auto">
           <Btn variant="outline" icon="download" onClick={() => exportReport(tab === "ops" ? "Operational report" : tab === "fin" ? "Financial report" : tab === "clin" ? "Clinical report" : "Audit log")}>
             Export view
           </Btn>
-        </div>
+        </div>}
       </div>
 
       <Tabs

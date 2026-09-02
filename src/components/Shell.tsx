@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useApp } from "../lib/store";
-import { MODULES, MODULE_ROLES, ROLE_MAP, BRANCHES, timeAgo, fullName } from "../lib/data";
+import { MODULES, ROLE_MAP, BRANCHES, timeAgo, fullName } from "../lib/data";
 import type { ModuleId } from "../lib/data";
 import { I, PulseMark } from "./icons";
 import { Avatar, Btn, ECG, Modal, Pill, TextInput, Field } from "./ui";
@@ -190,15 +190,15 @@ function RenameModal({ open, onClose }: { open: boolean; onClose: () => void }) 
 }
 
 export function Shell({ children }: { children: ReactNode }) {
-  const { s, go, signOut, setBranch, toasts, dismiss, reset } = useApp();
+  const { s, go, signOut, setBranch, toasts, dismiss, reset, hasPermission } = useApp();
   const role = s.session?.role ?? "admin";
   const meta = ROLE_MAP[role];
-  const visible = MODULES.filter((m) => MODULE_ROLES[m.id].includes(role));
+  const visible = MODULES.filter((m) => hasPermission(m.id, "view"));
   const groups = [...new Set(visible.map((m) => m.group))];
   const [navOpen, setNavOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const canRename = role === "super" || role === "admin" || role === "doctor";
+  const canRename = role === "super" || (hasPermission("dashboard", "edit") && (role === "admin" || role === "doctor"));
   const displayName = s.profiles[role]?.name ?? meta.name;
 
   useEffect(() => { setNavOpen(false); }, [s.view]);
