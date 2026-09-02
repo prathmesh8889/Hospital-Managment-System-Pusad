@@ -4,9 +4,10 @@ import { fmtMoney, fullName, timeAgo } from "../lib/data";
 import { Avatar, Btn, Card, EmptyState, Pill } from "../components/ui";
 import { I } from "../components/icons";
 import { RxLetterModal } from "../components/RxLetter";
+import { downloadPatientReportPdf, downloadPrescriptionPdf } from "../lib/pdf";
 
 export function Prescriptions() {
-  const { s, dispense, hasPermission } = useApp();
+  const { s, dispense, hasPermission, toast } = useApp();
   const role = s.session?.role ?? "doctor";
   const [filter, setFilter] = useState<"all" | "sent" | "dispensed">("all");
   const [expanded, setExpanded] = useState<string | null>(s.prescriptions[0]?.id ?? null);
@@ -14,6 +15,17 @@ export function Prescriptions() {
 
   const list = s.prescriptions.filter((r) => filter === "all" || r.status === filter);
   const isPharmacist = hasPermission("prescriptions", "edit") && (role === "pharmacist" || role === "admin" || role === "super");
+  const canDownload = ["super", "admin", "reception", "doctor", "pharmacist"].includes(role);
+
+  const savePrescription = async (id: string) => {
+    try { await downloadPrescriptionPdf(s, id); toast("success", "Prescription downloaded", "Medical prescription saved as PDF."); }
+    catch { toast("error", "Download failed", "Could not create the prescription PDF."); }
+  };
+
+  const saveReport = async (patientId: string) => {
+    try { await downloadPatientReportPdf(s, patientId); toast("success", "Patient report downloaded", "Complete medical report saved as PDF."); }
+    catch { toast("error", "Download failed", "Could not create the patient report PDF."); }
+  };
 
   return (
     <div className="space-y-4">
@@ -90,7 +102,9 @@ export function Prescriptions() {
                     {rx.status === "dispensed" && <Pill tone="green">completed</Pill>}
                     <div className="ml-auto flex flex-wrap gap-2">
                       <Btn size="sm" variant="outline" icon="share" onClick={() => setLetterId(rx.id)}>Share</Btn>
-                      <Btn size="sm" variant="dark" icon="download" onClick={() => setLetterId(rx.id)}>Patient letter</Btn>
+                      <Btn size="sm" variant="dark" icon="eye" onClick={() => setLetterId(rx.id)}>Preview</Btn>
+                      {canDownload && <Btn size="sm" variant="outline" icon="download" onClick={() => saveReport(rx.patientId)}>Patient report</Btn>}
+                      {canDownload && <Btn size="sm" icon="download" onClick={() => savePrescription(rx.id)}>Prescription PDF</Btn>}
                       {rx.status === "sent" && isPharmacist && (
                         <Btn size="sm" icon="check" onClick={() => dispense(rx.id)}>Dispense now</Btn>
                       )}

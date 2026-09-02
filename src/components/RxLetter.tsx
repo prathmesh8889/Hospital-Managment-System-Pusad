@@ -3,6 +3,7 @@ import { ageOf, fmtDate, fullName } from "../lib/data";
 import type { Prescription } from "../lib/data";
 import { Btn } from "./ui";
 import { I } from "./icons";
+import { downloadPrescriptionPdf } from "../lib/pdf";
 
 /* Builds a standalone, print-ready HTML prescription letter. */
 function letterHTML(hospital: string, rx: Prescription, patientName: string, patientMeta: string, patientCode: string,
@@ -70,17 +71,13 @@ export function RxLetterModal({ rx, onClose }: { rx: Prescription; onClose: () =
     letterHTML(s.hospitalName, rx, patientName, patientMeta, patient?.code ?? "—", doctorName, doctor?.specialization ?? "—",
       doctor?.license ?? "—", allergies, rows, rx.notes);
 
-  const download = () => {
-    const blob = new Blob([html()], { type: "text/html" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${rx.code}-${patientName.replace(/\s+/g, "-")}-prescription.html`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    window.setTimeout(() => URL.revokeObjectURL(url), 2000);
-    toast("success", "Prescription letter downloaded", `${rx.code} saved — hand it to the patient.`);
+  const download = async () => {
+    try {
+      await downloadPrescriptionPdf(s, rx.id);
+      toast("success", "Prescription PDF downloaded", `${rx.code} saved — ready to share with the patient.`);
+    } catch {
+      toast("error", "Download failed", "The prescription PDF could not be created. Please try again.");
+    }
   };
 
   const share = async () => {

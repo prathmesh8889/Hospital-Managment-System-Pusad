@@ -36,7 +36,7 @@ interface AppCtx {
   attemptLogin: (role: Role, username: string, password: string) => boolean;
   updateProfile: (role: Role, patch: ProfileOverride) => void;
   changePassword: (role: Role, current: string, next: string) => boolean;
-  updatePatientContact: (patientId: string, patch: { phone?: string; email?: string; address?: string }) => void;
+  updatePatientContact: (patientId: string, patch: { phone?: string; email?: string; address?: string; emergencyName?: string; emergencyPhone?: string }) => void;
   effectiveCredentials: Record<Role, { username: string; password: string }>;
   reset: () => void;
   go: (view: ModuleId, focusPatientId?: string | null) => void;
@@ -233,7 +233,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const updatePatientContact = useCallback(
-    (patientId: string, patch: { phone?: string; email?: string; address?: string }) => {
+    (patientId: string, patch: { phone?: string; email?: string; address?: string; emergencyName?: string; emergencyPhone?: string }) => {
       setS((prev) => {
         const p = prev.patients.find((x) => x.id === patientId);
         if (!p) return prev;

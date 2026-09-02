@@ -3,11 +3,22 @@ import { useApp } from "../lib/store";
 import { fmtMoney, fullName, timeAgo } from "../lib/data";
 import { Avatar, Btn, Card, EmptyState, Meter, Pill, Tabs } from "../components/ui";
 import { I } from "../components/icons";
+import { downloadPatientReportPdf, downloadPrescriptionPdf } from "../lib/pdf";
 
 export function Pharmacy() {
-  const { s, dispense, restock, hasPermission } = useApp();
+  const { s, dispense, restock, hasPermission, toast } = useApp();
   const [tab, setTab] = useState("queue");
   const canEdit = hasPermission("pharmacy", "edit");
+
+  const savePdf = async (kind: "prescription" | "report", id: string) => {
+    try {
+      if (kind === "prescription") await downloadPrescriptionPdf(s, id);
+      else await downloadPatientReportPdf(s, id);
+      toast("success", kind === "prescription" ? "Prescription downloaded" : "Patient report downloaded", "PDF saved successfully.");
+    } catch {
+      toast("error", "PDF download failed", "Please try again from the pharmacy record.");
+    }
+  };
 
   const pending = s.prescriptions.filter((r) => r.status === "sent");
   const low = s.medicines.filter((m) => m.stock <= m.reorder);
@@ -98,6 +109,10 @@ export function Pharmacy() {
                     </p>
                   )}
                   {rx.notes && <p className="text-[11.5px] text-ink-soft italic">“{rx.notes}”</p>}
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <Btn size="sm" variant="outline" icon="download" onClick={() => savePdf("report", rx.patientId)}>Patient report</Btn>
+                    <Btn size="sm" variant="dark" icon="download" onClick={() => savePdf("prescription", rx.id)}>Prescription PDF</Btn>
+                  </div>
                 </div>
               </Card>
             );

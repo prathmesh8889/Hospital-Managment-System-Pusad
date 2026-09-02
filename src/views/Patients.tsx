@@ -5,6 +5,7 @@ import type { Patient } from "../lib/data";
 import { Avatar, Btn, Card, Drawer, EmptyState, Field, KeyVal, Modal, Pill, Select, Tabs, TextArea, TextInput, BILL_META, LAB_META } from "../components/ui";
 import { I } from "../components/icons";
 import { RxLetterModal } from "../components/RxLetter";
+import { downloadPatientReportPdf, downloadPrescriptionPdf } from "../lib/pdf";
 
 function ChipInput({ label, hint, items, setItems, tone }: { label: string; hint: string; items: string[]; setItems: (v: string[]) => void; tone: "red" | "steel" }) {
   const [val, setVal] = useState("");
@@ -54,6 +55,30 @@ function ClinicalEditor({ patient, onClose }: { patient: Patient; onClose: () =>
           <I name="alert" className="w-3.5 h-3.5 shrink-0 mt-0.5" />
           Allergy changes instantly update dispensing safety checks in OPD prescribing and Pharmacy, and alert the pharmacist.
         </p>
+      </div>
+    </Modal>
+  );
+}
+
+function PatientDetailsEditor({ patient, onClose }: { patient: Patient; onClose: () => void }) {
+  const { updatePatientContact } = useApp();
+  const [form, setForm] = useState({
+    phone: patient.phone,
+    email: patient.email,
+    address: patient.address,
+    emergencyName: patient.emergencyName,
+    emergencyPhone: patient.emergencyPhone,
+  });
+  const change = (key: keyof typeof form) => (event: { target: { value: string } }) => setForm((current) => ({ ...current, [key]: event.target.value }));
+  return (
+    <Modal open onClose={onClose} title="Maintain patient details" sub={`${fullName(patient)} · ${patient.code} — visible to Nurse, Doctor and care team`}
+      footer={<><Btn variant="outline" onClick={onClose}>Cancel</Btn><Btn icon="check" onClick={() => { updatePatientContact(patient.id, form); onClose(); }}>Save patient details</Btn></>}>
+      <div className="grid sm:grid-cols-2 gap-3.5">
+        <Field label="Phone"><TextInput value={form.phone} onChange={change("phone")} /></Field>
+        <Field label="Email"><TextInput type="email" value={form.email} onChange={change("email")} /></Field>
+        <div className="sm:col-span-2"><Field label="Address"><TextArea rows={2} value={form.address} onChange={change("address")} /></Field></div>
+        <Field label="Emergency contact"><TextInput value={form.emergencyName} onChange={change("emergencyName")} /></Field>
+        <Field label="Emergency phone"><TextInput value={form.emergencyPhone} onChange={change("emergencyPhone")} /></Field>
       </div>
     </Modal>
   );
@@ -128,10 +153,30 @@ function PatientDrawer({ patient, onClose }: { patient: Patient; onClose: () => 
   const { s, go, setBookPatient, createAdmission, toast, hasPermission } = useApp();
   const [tab, setTab] = useState("timeline");
   const [editClinical, setEditClinical] = useState(false);
+  const [editDetails, setEditDetails] = useState(false);
   const [letterId, setLetterId] = useState<string | null>(null);
   const role = s.session?.role ?? "admin";
   const canWrite = role !== "patient" && hasPermission("patients", "edit");
   const canEditClinical = hasPermission("patients", "edit") && ["doctor", "nurse", "admin", "super"].includes(role);
+  const canDownload = ["super", "admin", "reception", "doctor", "pharmacist"].includes(role);
+
+  const downloadReport = async () => {
+    try {
+      await downloadPatientReportPdf(s, patient.id);
+      toast("success", "Patient report downloaded", `${patient.code} medical report saved as PDF.`);
+    } catch {
+      toast("error", "Report download failed", "Please try again from the patient record.");
+    }
+  };
+
+  const downloadRx = async (prescriptionId: string) => {
+    try {
+      await downloadPrescriptionPdf(s, prescriptionId);
+      toast("success", "Prescription downloaded", "Medical prescription saved as PDF.");
+    } catch {
+      toast("error", "Prescription download failed", "Please try again.");
+    }
+  };
 
   useEffect(() => setTab("timeline"), [patient.id]);
 
@@ -198,7 +243,7 @@ function PatientDrawer({ patient, onClose }: { patient: Patient; onClose: () => 
           {canEditClinical && (
             <button onClick={() => setEditClinical(true)}
               className="ml-auto inline-flex items-center gap-1 text-[10.5px] font-bold text-brand-400 hover:text-brand-200 transition-colors">
-              <I name="edit" className="w-3 h-3" /> Edit clinical
+              <I name="edit" className="w-3 h-3" /> Maintain health condition
             </button>
           )}
         </div>
@@ -207,6 +252,11 @@ function PatientDrawer({ patient, onClose }: { patient: Patient; onClose: () => 
             <Btn size="sm" icon="calendar" className="!bg-brand-500 hover:!bg-brand-400 flex-1 sm:flex-none" onClick={() => { setBookPatient(patient.id); go("appointments"); }}>Book appointment</Btn>
             <Btn size="sm" variant="dark" icon="bed" className="!bg-white/10 hover:!bg-white/20 border border-white/15 flex-1 sm:flex-none" onClick={admit}>Request admission</Btn>
           </div>
+        )}
+        {canDownload && (
+          <button onClick={downloadReport} className="mt-2 inline-flex items-center gap-1.5 text-[10.5px] font-bold text-brand-300 hover:text-white transition-colors">
+            <I name="download" className="w-3.5 h-3.5" /> Download complete medical report PDF
+          </button>
         )}
       </div>
 
@@ -274,7 +324,7 @@ function PatientDrawer({ patient, onClose }: { patient: Patient; onClose: () => 
                   {r.notes && <p className="text-[11.5px] text-ink-soft bg-paper rounded-md px-2.5 py-1.5 mt-2"><span className="font-semibold">Notes:</span> {r.notes}</p>}
                   <div className="flex justify-end gap-2 mt-2.5">
                     <Btn size="sm" variant="outline" icon="share" onClick={() => setLetterId(r.id)}>Share</Btn>
-                    <Btn size="sm" variant="dark" icon="download" onClick={() => setLetterId(r.id)}>Letter</Btn>
+                    {canDownload && <Btn size="sm" variant="dark" icon="download" onClick={() => downloadRx(r.id)}>Prescription PDF</Btn>}
                   </div>
                 </div>
               </Card>
@@ -334,6 +384,7 @@ function PatientDrawer({ patient, onClose }: { patient: Patient; onClose: () => 
 
         {tab === "info" && (
           <Card className="!rounded-lg">
+            {canWrite && <div className="flex justify-end mb-2"><Btn size="sm" variant="outline" icon="edit" onClick={() => setEditDetails(true)}>Edit patient details</Btn></div>}
             <KeyVal k="Patient ID" v={<span className="font-mono">{patient.code}</span>} />
             <KeyVal k="Date of birth" v={`${fmtDate(patient.dob)} · ${ageOf(patient.dob)} yrs`} />
             <KeyVal k="Gender" v={patient.gender} />
@@ -351,6 +402,7 @@ function PatientDrawer({ patient, onClose }: { patient: Patient; onClose: () => 
       </div>
 
       {editClinical && <ClinicalEditor patient={patient} onClose={() => setEditClinical(false)} />}
+      {editDetails && <PatientDetailsEditor patient={patient} onClose={() => setEditDetails(false)} />}
       {letterId && (() => {
         const rx = s.prescriptions.find((r) => r.id === letterId);
         return rx ? <RxLetterModal rx={rx} onClose={() => setLetterId(null)} /> : null;
