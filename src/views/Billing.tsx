@@ -1,15 +1,18 @@
 import { useMemo, useState } from "react";
 import { useApp } from "../lib/store";
-import { billTotals, fmtDate, fmtMoney, fullName } from "../lib/data";
+import { INR_RATE, billTotals, fmtDate, fmtMoney0 as fmtMoney, fullName } from "../lib/data";
 import type { Bill, BillItem, BillStatus, Payment } from "../lib/data";
 import { Avatar, Btn, Card, Drawer, EmptyState, Field, Modal, Pill, Select, TextInput, BILL_META } from "../components/ui";
 import { I } from "../components/icons";
 import { downloadBillPdf, printBillReceipt } from "../lib/pdf";
 
+const toRupees = (baseAmount: number) => Math.round(baseAmount * INR_RATE);
+const fromRupees = (rupees: number) => rupees / INR_RATE;
+
 function EditBillModal({ bill, onClose }: { bill: Bill; onClose: () => void }) {
   const { updateBill, toast } = useApp();
   const [items, setItems] = useState<BillItem[]>(bill.items.map((item) => ({ ...item })));
-  const [discount, setDiscount] = useState(String(bill.discount));
+  const [discount, setDiscount] = useState(String(toRupees(bill.discount)));
   const [taxRate, setTaxRate] = useState(String(bill.taxRate));
   const [status, setStatus] = useState<BillStatus>(bill.status);
   const [claimStatus, setClaimStatus] = useState<Bill["claimStatus"]>(bill.claimStatus);
@@ -28,7 +31,7 @@ function EditBillModal({ bill, onClose }: { bill: Bill; onClose: () => void }) {
     }
     updateBill(bill.id, {
       items: cleanItems,
-      discount: Math.max(0, Number(discount) || 0),
+      discount: fromRupees(Math.max(0, Math.round(Number(discount) || 0))),
       taxRate: Math.min(100, Math.max(0, Number(taxRate) || 0)),
       status,
       claimStatus,
@@ -54,14 +57,14 @@ function EditBillModal({ bill, onClose }: { bill: Bill; onClose: () => void }) {
             </div>
             <div className="grid grid-cols-2 gap-2.5 mt-2.5">
               <Field label="Quantity"><TextInput type="number" min="1" value={item.qty} onChange={(e) => patchItem(index, { qty: Number(e.target.value) })} /></Field>
-              <Field label="Unit price"><TextInput type="number" min="0" step="0.01" value={item.price} onChange={(e) => patchItem(index, { price: Number(e.target.value) })} /></Field>
+              <Field label="Unit price (₹)"><TextInput type="number" min="0" step="1" value={toRupees(item.price)} onChange={(e) => patchItem(index, { price: fromRupees(Math.max(0, Math.round(Number(e.target.value) || 0))) })} /></Field>
             </div>
           </div>
         ))}
         <Btn variant="outline" size="sm" icon="plus" onClick={() => setItems((current) => [...current, { desc: "", kind: "service", qty: 1, price: 0 }])}>Add line item</Btn>
 
         <div className="grid grid-cols-2 gap-2.5 pt-1">
-          <Field label="Discount / waiver"><TextInput type="number" min="0" step="0.01" value={discount} onChange={(e) => setDiscount(e.target.value)} /></Field>
+          <Field label="Discount / waiver (₹)"><TextInput type="number" min="0" step="1" value={discount} onChange={(e) => setDiscount(e.target.value)} /></Field>
           <Field label="Tax %"><TextInput type="number" min="0" max="100" step="0.1" value={taxRate} onChange={(e) => setTaxRate(e.target.value)} /></Field>
           <Field label="Invoice status"><Select value={status} onChange={(e) => setStatus(e.target.value as BillStatus)}><option value="unpaid">Unpaid</option><option value="partial">Partial</option><option value="paid">Paid</option><option value="refunded">Refunded</option></Select></Field>
           <Field label="Claim status"><Select value={claimStatus} onChange={(e) => setClaimStatus(e.target.value as Bill["claimStatus"])}><option value="none">None</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option></Select></Field>
@@ -74,17 +77,20 @@ function EditBillModal({ bill, onClose }: { bill: Bill; onClose: () => void }) {
 function PayModal({ bill, onClose }: { bill: Bill; onClose: () => void }) {
   const { recordPayment } = useApp();
   const t = billTotals(bill);
-  const [amount, setAmount] = useState(t.balance.toFixed(2));
+  const balanceRupees = toRupees(t.balance);
+  const [amount, setAmount] = useState(String(balanceRupees));
   const [method, setMethod] = useState<Payment["method"]>("Card");
+  const enteredRupees = Math.max(0, Math.round(Number(amount) || 0));
+  const collectibleRupees = Math.min(enteredRupees, balanceRupees);
   return (
     <Modal open onClose={onClose} title={`Record payment · ${bill.code}`} sub={`Balance due ${fmtMoney(t.balance)}`}
       footer={<><Btn variant="outline" onClick={onClose}>Cancel</Btn>
-        <Btn icon="wallet" onClick={() => { const a = Number(amount); if (a > 0) { recordPayment(bill.id, a, method); onClose(); } }}>
-          Collect {fmtMoney(Math.min(Number(amount) || 0, t.balance))}
+        <Btn icon="wallet" onClick={() => { if (collectibleRupees > 0) { recordPayment(bill.id, fromRupees(collectibleRupees), method); onClose(); } }}>
+          Collect {fmtMoney(fromRupees(collectibleRupees))}
         </Btn></>}>
       <div className="grid grid-cols-2 gap-3.5">
-        <Field label="Amount">
-          <TextInput type="number" value={amount} onChange={(e) => setAmount(e.target.value)} />
+        <Field label="Amount (₹)">
+          <TextInput type="number" min="1" step="1" value={amount} onChange={(e) => setAmount(e.target.value)} />
         </Field>
         <Field label="Method">
           <Select value={method} onChange={(e) => setMethod(e.target.value as Payment["method"])}>
@@ -94,12 +100,12 @@ function PayModal({ bill, onClose }: { bill: Bill; onClose: () => void }) {
       </div>
       <div className="flex gap-1.5 mt-3">
         {[25, 50, 100].map((pct) => (
-          <button key={pct} onClick={() => setAmount(((t.balance * pct) / 100).toFixed(2))}
+          <button key={pct} onClick={() => setAmount(String(Math.round((balanceRupees * pct) / 100)))}
             className="px-2.5 py-1 rounded-md bg-line-soft text-[11px] font-semibold text-ink-soft hover:bg-brand-100 hover:text-brand-700 transition-colors">
             {pct}%
           </button>
         ))}
-        <button onClick={() => setAmount(t.balance.toFixed(2))} className="px-2.5 py-1 rounded-md bg-line-soft text-[11px] font-semibold text-ink-soft hover:bg-brand-100 hover:text-brand-700 transition-colors">Full</button>
+        <button onClick={() => setAmount(String(balanceRupees))} className="px-2.5 py-1 rounded-md bg-line-soft text-[11px] font-semibold text-ink-soft hover:bg-brand-100 hover:text-brand-700 transition-colors">Full</button>
       </div>
     </Modal>
   );
@@ -144,7 +150,7 @@ function PaymentEditorModal({ bill, onClose }: { bill: Bill; onClose: () => void
               <button onClick={() => setPayments((current) => current.filter((_, i) => i !== index))} className="ml-auto text-danger-600 hover:text-danger-700" aria-label="Remove payment"><I name="trash" className="w-4 h-4" /></button>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Paid amount"><TextInput type="number" min="0.01" step="0.01" value={payment.amount} onChange={(e) => patchPayment(index, { amount: Number(e.target.value) })} /></Field>
+              <Field label="Paid amount (₹)"><TextInput type="number" min="1" step="1" value={toRupees(payment.amount)} onChange={(e) => patchPayment(index, { amount: fromRupees(Math.max(0, Math.round(Number(e.target.value) || 0))) })} /></Field>
               <Field label="Payment method"><Select value={payment.method} onChange={(e) => patchPayment(index, { method: e.target.value as Payment["method"] })}>
                 <option>Cash</option><option>Card</option><option>Wallet</option><option>Bank Transfer</option><option>Insurance</option>
               </Select></Field>
