@@ -1,14 +1,19 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useApp } from "../lib/store";
-import { DX_STATS, OPD_7D, OPD_7D_LABELS, REVENUE_14D, REVENUE_BY_DEPT, billTotals, fmtMoney, fmtMoney0, fullName, timeAgo } from "../lib/data";
+import { DX_STATS, OPD_7D, OPD_7D_LABELS, REVENUE_14D, REVENUE_BY_DEPT, billTotals, fmtDate, fmtMoney, fmtMoney0, fullName, timeAgo } from "../lib/data";
 import { Bars, Btn, Card, Donut, Pill, Sparkline, Tabs, TextInput } from "../components/ui";
 import { I } from "../components/icons";
+import { downloadBillPdf, downloadPrescriptionPdf } from "../lib/pdf";
+import { downloadHealthReportPdf, downloadMedicalReportPdf, downloadPrescriptionBillPdf, downloadServiceReportPdf } from "../lib/patientReports";
 
 export function Reports() {
   const { s, toast, hasPermission } = useApp();
   const role = s.session?.role ?? "admin";
-  const [tab, setTab] = useState("ops");
+  const canPatientReports = ["super", "admin", "doctor"].includes(role);
+  const [tab, setTab] = useState(canPatientReports ? "patient" : "ops");
   const [auditQ, setAuditQ] = useState("");
+  const [patientQ, setPatientQ] = useState("");
+  const [selectedPatientId, setSelectedPatientId] = useState<string>(s.patients[0]?.id ?? "");
 
   const occupied = s.beds.filter((b) => b.status === "occupied").length;
   const occPct = (occupied / s.beds.length) * 100;
@@ -25,6 +30,23 @@ export function Reports() {
   );
 
   const showAudit = role === "super" || role === "admin";
+  const patientResults = useMemo(() => {
+    const q = patientQ.trim().toLowerCase();
+    if (!q) return s.patients.slice(0, 8);
+    return s.patients.filter((p) => `${p.firstName} ${p.lastName} ${p.code} ${p.phone}`.toLowerCase().includes(q)).slice(0, 8);
+  }, [patientQ, s.patients]);
+  const selectedPatient = s.patients.find((p) => p.id === selectedPatientId) ?? s.patients[0];
+  const patientPrescriptions = selectedPatient ? s.prescriptions.filter((rx) => rx.patientId === selectedPatient.id).sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)) : [];
+  const patientBills = selectedPatient ? s.bills.filter((bill) => bill.patientId === selectedPatient.id).sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)) : [];
+
+  const download = async (label: string, action: () => Promise<void>) => {
+    try {
+      await action();
+      toast("success", `${label} downloaded`, "A separate PDF was generated for this report type.");
+    } catch {
+      toast("error", `${label} download failed`, "Please try again from Patient Reports.");
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -33,7 +55,7 @@ export function Reports() {
           <p className="micro text-brand-700">Insight</p>
           <h1 className="font-display font-extrabold text-[22px] tracking-tight text-ink">Reports & analytics</h1>
         </div>
-        {hasPermission("reports", "edit") && <div className="ml-auto">
+        {hasPermission("reports", "edit") && tab !== "patient" && <div className="ml-auto">
           <Btn variant="outline" icon="download" onClick={() => exportReport(tab === "ops" ? "Operational report" : tab === "fin" ? "Financial report" : tab === "clin" ? "Clinical report" : "Audit log")}>
             Export view
           </Btn>
@@ -42,6 +64,7 @@ export function Reports() {
 
       <Tabs
         tabs={[
+          ...(canPatientReports ? [{ id: "patient", label: "Patient Reports" }] : []),
           { id: "ops", label: "Operational" },
           { id: "fin", label: "Financial" },
           { id: "clin", label: "Clinical" },
@@ -49,6 +72,122 @@ export function Reports() {
         ]}
         active={tab} onChange={setTab}
       />
+
+      {tab === "patient" && canPatientReports && (
+        <div className="space-y-4">
+          <Card title="Select patient" sub="Doctor reports are separated by document type. Billing is never mixed into the medical or health report.">
+            <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-4 items-start">
+              <div>
+                <div className="relative">
+                  <I name="search" className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint" />
+                  <TextInput value={patientQ} onChange={(e) => setPatientQ(e.target.value)} placeholder="Search patient name, ID or phone…" className="!pl-9" />
+                </div>
+                <div className="mt-2 border border-line rounded-lg overflow-hidden max-h-[245px] overflow-y-auto scroll-slim">
+                  {patientResults.map((p) => (
+                    <button key={p.id} onClick={() => { setSelectedPatientId(p.id); setPatientQ(""); }}
+                      className={`w-full px-3 py-2.5 text-left flex items-center gap-2.5 border-b border-line-soft last:border-0 transition-colors ${selectedPatient?.id === p.id ? "bg-brand-50" : "bg-white hover:bg-brand-50/60"}`}>
+                      <span className="w-8 h-8 rounded-full grid place-items-center bg-pine-900 text-brand-200 text-[11px] font-bold shrink-0">{p.firstName[0]}{p.lastName[0]}</span>
+                      <span className="min-w-0">
+                        <span className="block text-[12.5px] font-semibold text-ink truncate">{fullName(p)}</span>
+                        <span className="block font-mono text-[10.5px] text-ink-faint">{p.code} · {p.phone}</span>
+                      </span>
+                    </button>
+                  ))}
+                  {patientResults.length === 0 && <p className="text-xs text-ink-faint text-center py-5">No patient matches your search.</p>}
+                </div>
+              </div>
+
+              {selectedPatient && (
+                <div className="rounded-xl border border-line bg-paper p-4">
+                  <p className="micro text-brand-700">Selected patient</p>
+                  <div className="flex items-start gap-3 mt-1">
+                    <div className="min-w-0 flex-1">
+                      <h3 className="font-display font-extrabold text-[18px] text-ink">{fullName(selectedPatient)}</h3>
+                      <p className="font-mono text-[11px] text-ink-faint mt-0.5">{selectedPatient.code} · Blood {selectedPatient.blood} · {selectedPatient.phone}</p>
+                    </div>
+                    <Pill tone={selectedPatient.allergies.length ? "red" : "green"}>{selectedPatient.allergies.length ? `${selectedPatient.allergies.length} allergy flag(s)` : "No allergy flag"}</Pill>
+                  </div>
+                  <div className="grid sm:grid-cols-3 gap-2 mt-4">
+                    <div className="bg-white border border-line-soft rounded-lg p-2.5"><p className="micro text-ink-faint">Prescriptions</p><p className="font-display font-extrabold text-lg">{patientPrescriptions.length}</p></div>
+                    <div className="bg-white border border-line-soft rounded-lg p-2.5"><p className="micro text-ink-faint">Invoices</p><p className="font-display font-extrabold text-lg">{patientBills.length}</p></div>
+                    <div className="bg-white border border-line-soft rounded-lg p-2.5"><p className="micro text-ink-faint">Consultations</p><p className="font-display font-extrabold text-lg">{s.consultations.filter((c) => c.patientId === selectedPatient.id).length}</p></div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </Card>
+
+          {selectedPatient && (
+            <>
+              <div className="grid md:grid-cols-3 gap-3">
+                <Card title="Medical Report" sub="Doctor notes, diagnoses, prescriptions and diagnostics. No billing data.">
+                  <p className="text-[11.5px] text-ink-soft leading-relaxed mb-3">Use this as the patient's separate clinical/medical record.</p>
+                  <Btn className="w-full" icon="download" onClick={() => download("Medical report", () => downloadMedicalReportPdf(s, selectedPatient.id))}>Download Medical PDF</Btn>
+                </Card>
+                <Card title="Health Report" sub="Health status, conditions, allergies, vitals and latest doctor assessment.">
+                  <p className="text-[11.5px] text-ink-soft leading-relaxed mb-3">This report intentionally excludes medicine charges and hospital billing.</p>
+                  <Btn className="w-full" icon="download" onClick={() => download("Health report", () => downloadHealthReportPdf(s, selectedPatient.id))}>Download Health PDF</Btn>
+                </Card>
+                <Card title="Service Report" sub="Consultation, lab, imaging and ward/admission services only.">
+                  <p className="text-[11.5px] text-ink-soft leading-relaxed mb-3">A separate service history without invoice totals or payment details.</p>
+                  <Btn className="w-full" icon="download" onClick={() => download("Service report", () => downloadServiceReportPdf(s, selectedPatient.id))}>Download Service PDF</Btn>
+                </Card>
+              </div>
+
+              <Card title="Prescriptions" sub="Prescription PDF and prescription medicine bill are separate documents." pad={false}>
+                {patientPrescriptions.length === 0 ? <p className="text-xs text-ink-faint text-center py-6">No prescriptions for this patient.</p> : (
+                  <div className="divide-y divide-line-soft">
+                    {patientPrescriptions.map((rx) => {
+                      const doctor = s.doctors.find((d) => d.id === rx.doctorId);
+                      const medicineTotal = rx.items.reduce((sum, item) => {
+                        const med = s.medicines.find((m) => m.id === item.medicineId);
+                        return sum + (med?.price ?? 0) * item.qty;
+                      }, 0);
+                      return (
+                        <div key={rx.id} className="px-4 py-3 flex flex-col lg:flex-row lg:items-center gap-3">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[13px] font-semibold text-ink">{rx.code} <span className="font-mono text-[10.5px] text-ink-faint ml-1">{fmtDate(rx.createdAt)}</span></p>
+                            <p className="text-[11.5px] text-ink-soft truncate">{doctor?.name ?? "Doctor"} · {rx.items.length} medicine(s) · {rx.status}</p>
+                          </div>
+                          <div className="text-left lg:text-right shrink-0">
+                            <p className="micro text-ink-faint">Medicine value</p>
+                            <p className="font-mono font-semibold text-[12.5px] text-ink">{fmtMoney0(medicineTotal)}</p>
+                          </div>
+                          <div className="flex flex-wrap gap-2 shrink-0">
+                            <Btn size="sm" variant="outline" icon="download" onClick={() => download("Prescription", () => downloadPrescriptionPdf(s, rx.id))}>Prescription PDF</Btn>
+                            <Btn size="sm" variant="dark" icon="receipt" onClick={() => download("Prescription bill", () => downloadPrescriptionBillPdf(s, rx.id))}>Prescription Bill</Btn>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </Card>
+
+              <Card title="Hospital Bills" sub="Each invoice / payment receipt downloads separately from all medical reports." pad={false}>
+                {patientBills.length === 0 ? <p className="text-xs text-ink-faint text-center py-6">No hospital invoices for this patient.</p> : (
+                  <div className="divide-y divide-line-soft">
+                    {patientBills.map((bill) => {
+                      const totals = billTotals(bill);
+                      return (
+                        <div key={bill.id} className="px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3">
+                          <I name="receipt" className="w-5 h-5 text-brand-700 shrink-0 hidden sm:block" />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[13px] font-semibold text-ink">{bill.code} <span className="font-mono text-[10.5px] text-ink-faint ml-1">{fmtDate(bill.createdAt)}</span></p>
+                            <p className="text-[11.5px] text-ink-soft">{bill.items.length} service/item(s) · paid {fmtMoney(totals.paid)} · balance {fmtMoney(totals.balance)}</p>
+                          </div>
+                          <p className="font-mono font-bold text-[13px] text-ink shrink-0">{fmtMoney(totals.total)}</p>
+                          <Btn size="sm" icon="download" onClick={() => download("Bill", () => downloadBillPdf(s, bill.id))}>Download Bill PDF</Btn>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </Card>
+            </>
+          )}
+        </div>
+      )}
 
       {tab === "ops" && (
         <div className="grid lg:grid-cols-3 gap-4">
