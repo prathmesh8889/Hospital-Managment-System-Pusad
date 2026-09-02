@@ -1,9 +1,9 @@
 import type { AppState } from "./store";
-import { ageOf, billTotals, fullName } from "./data";
+import { INR_RATE, ageOf, billTotals, fmtMoney, fullName } from "./data";
 
 const cleanFileName = (value: string) => value.replace(/[^a-z0-9_-]+/gi, "-").replace(/-+/g, "-");
 const shortDate = (value?: string) => value ? new Date(value).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
-const money = (value: number) => `INR ${value.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const money = (value: number) => `INR ${(value * INR_RATE).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 async function createPdf() {
   const { jsPDF } = await import("jspdf");
@@ -205,4 +205,82 @@ export async function downloadPatientReportPdf(state: AppState, patientId: strin
 
   addFooter(doc);
   doc.save(`${cleanFileName(patient.code)}-${cleanFileName(fullName(patient))}-medical-report.pdf`);
+}
+
+export async function downloadBillPdf(state: AppState, billId: string) {
+  const bill = state.bills.find((item) => item.id === billId);
+  if (!bill) throw new Error("Invoice not found");
+  const patient = state.patients.find((item) => item.id === bill.patientId);
+  if (!patient) throw new Error("Patient not found");
+  const totals = billTotals(bill);
+  const doc = await createPdf();
+  addHeader(doc, state.hospitalName, "PATIENT INVOICE / RECEIPT", bill.code);
+  let y = 40;
+  y = detailRow(doc, "Patient", `${fullName(patient)} · ${patient.code}`, y);
+  y = detailRow(doc, "Contact", `${patient.phone} · ${patient.address || "No address"}`, y);
+  y = detailRow(doc, "Invoice date", shortDate(bill.createdAt), y);
+  y = detailRow(doc, "Invoice status", `${bill.status.toUpperCase()} · Claim ${bill.claimStatus.toUpperCase()}`, y);
+
+  y = sectionTitle(doc, "Separate bill items", y + 3);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.8);
+  doc.setTextColor(91, 111, 103);
+  doc.text("SERVICE / ITEM", 17, y);
+  doc.text("QTY", 133, y, { align: "right" });
+  doc.text("RATE", 162, y, { align: "right" });
+  doc.text("AMOUNT", 193, y, { align: "right" });
+  y += 5;
+  bill.items.forEach((item, index) => {
+    const lines = doc.splitTextToSize(`${index + 1}. ${item.desc}`, 100) as string[];
+    const height = Math.max(8, lines.length * 4.2 + 2);
+    y = ensurePage(doc, y, height);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    doc.setTextColor(20, 35, 30);
+    doc.text(lines, 17, y + 3);
+    doc.text(String(item.qty), 133, y + 3, { align: "right" });
+    doc.text(money(item.price), 162, y + 3, { align: "right" });
+    doc.text(money(item.qty * item.price), 193, y + 3, { align: "right" });
+    doc.setDrawColor(231, 237, 233);
+    doc.line(15, y + height - 2, 195, y + height - 2);
+    y += height;
+  });
+
+  y = ensurePage(doc, y + 4, 40);
+  y = detailRow(doc, "Subtotal", money(totals.subtotal), y);
+  if (bill.discount > 0) y = detailRow(doc, "Discount / waiver", `- ${money(bill.discount)}`, y);
+  y = detailRow(doc, `Tax (${bill.taxRate}%)`, money(totals.tax), y);
+  y = detailRow(doc, "Invoice total", money(totals.total), y);
+  y = detailRow(doc, "Paid", money(totals.paid), y);
+  y = detailRow(doc, "Balance due", money(totals.balance), y);
+
+  y = sectionTitle(doc, `Payment receipts (${bill.payments.length})`, y + 4);
+  if (!bill.payments.length) y = detailRow(doc, "Payment", "No payment recorded", y);
+  bill.payments.forEach((payment, index) => {
+    y = detailRow(doc, `${index + 1}. ${payment.ref}`, `${shortDate(payment.at)} · ${payment.method} · ${money(payment.amount)}`, y);
+  });
+  addFooter(doc);
+  doc.save(`${cleanFileName(bill.code)}-${cleanFileName(patient.code)}-receipt.pdf`);
+}
+
+const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char] ?? char));
+
+export function printBillReceipt(state: AppState, billId: string) {
+  const bill = state.bills.find((item) => item.id === billId);
+  const patient = state.patients.find((item) => item.id === bill?.patientId);
+  if (!bill || !patient) throw new Error("Invoice not found");
+  const totals = billTotals(bill);
+  const itemRows = bill.items.map((item, index) => `<tr><td>${index + 1}. ${escapeHtml(item.desc)}</td><td class="num">${item.qty}</td><td class="num">${fmtMoney(item.price)}</td><td class="num">${fmtMoney(item.qty * item.price)}</td></tr>`).join("");
+  const payments = bill.payments.length
+    ? bill.payments.map((payment) => `<tr><td>${escapeHtml(payment.ref)}</td><td>${escapeHtml(payment.method)}</td><td>${escapeHtml(shortDate(payment.at))}</td><td class="num">${fmtMoney(payment.amount)}</td></tr>`).join("")
+    : `<tr><td colspan="4" class="empty">No payment recorded</td></tr>`;
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(bill.code)} Receipt</title><style>
+    @page{size:A4;margin:13mm}*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;color:#14231e;font-size:12px}.sheet{max-width:780px;margin:auto;border:1px solid #d8e1db}.head{background:#0a2a21;color:#fff;padding:20px 24px;display:flex;justify-content:space-between}.head h1{margin:0;font-size:20px}.head p{margin:5px 0 0;color:#a8dcc4}.right{text-align:right}.body{padding:22px 24px}.meta{display:grid;grid-template-columns:1fr 1fr;gap:16px;border-bottom:2px solid #0a2a21;padding-bottom:15px}.meta b{font-size:14px}.label{font-size:10px;color:#718078;text-transform:uppercase;letter-spacing:.8px}h2{font-size:12px;color:#0b6b51;text-transform:uppercase;letter-spacing:1px;background:#ecf6f0;padding:8px 10px;margin:20px 0 7px}table{width:100%;border-collapse:collapse}th{font-size:10px;text-align:left;color:#62726a;background:#f4f7f5;padding:8px}td{padding:9px 8px;border-bottom:1px solid #e5ebe7}.num{text-align:right;white-space:nowrap}.totals{margin:15px 0 0 auto;width:310px}.totals div{display:flex;justify-content:space-between;padding:4px 0}.totals .grand{font-size:15px;font-weight:bold;border-top:2px solid #0a2a21;margin-top:5px;padding-top:8px}.paid{color:#0b6b51;font-weight:bold}.due{color:#b23a27;font-weight:bold}.empty{text-align:center;color:#718078}.foot{padding:12px 24px;background:#f4f7f5;color:#718078;font-size:10px;display:flex;justify-content:space-between}@media print{body{print-color-adjust:exact;-webkit-print-color-adjust:exact}.sheet{border:0}}
+  </style></head><body><div class="sheet"><div class="head"><div><h1>${escapeHtml(state.hospitalName)}</h1><p>Main Campus · Pusad · Hospital Management System</p></div><div class="right"><b>INVOICE / RECEIPT</b><p>${escapeHtml(bill.code)}</p></div></div><div class="body"><div class="meta"><div><span class="label">Patient</span><br><b>${escapeHtml(fullName(patient))}</b><br>${escapeHtml(patient.code)} · ${escapeHtml(patient.phone)}</div><div class="right"><span class="label">Invoice date</span><br><b>${escapeHtml(shortDate(bill.createdAt))}</b><br>Status: ${escapeHtml(bill.status.toUpperCase())}</div></div><h2>Separate bill items</h2><table><thead><tr><th>Service / item</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th></tr></thead><tbody>${itemRows}</tbody></table><div class="totals"><div><span>Subtotal</span><span>${fmtMoney(totals.subtotal)}</span></div>${bill.discount > 0 ? `<div><span>Discount</span><span>- ${fmtMoney(bill.discount)}</span></div>` : ""}<div><span>Tax (${bill.taxRate}%)</span><span>${fmtMoney(totals.tax)}</span></div><div class="grand"><span>Total</span><span>${fmtMoney(totals.total)}</span></div><div class="paid"><span>Paid</span><span>${fmtMoney(totals.paid)}</span></div><div class="due"><span>Balance</span><span>${fmtMoney(totals.balance)}</span></div></div><h2>Payment receipts</h2><table><thead><tr><th>Reference</th><th>Method</th><th>Date</th><th class="num">Amount</th></tr></thead><tbody>${payments}</tbody></table></div><div class="foot"><span>Computer-generated receipt · Audit logged</span><span>Printed ${escapeHtml(new Date().toLocaleString("en-IN"))}</span></div></div></body></html>`;
+  const popup = window.open("", "_blank", "width=900,height=900");
+  if (!popup) throw new Error("Pop-up blocked");
+  popup.document.write(html);
+  popup.document.close();
+  popup.focus();
+  window.setTimeout(() => popup.print(), 300);
 }

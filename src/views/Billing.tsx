@@ -4,6 +4,7 @@ import { billTotals, fmtDate, fmtMoney, fullName } from "../lib/data";
 import type { Bill, BillItem, BillStatus, Payment } from "../lib/data";
 import { Avatar, Btn, Card, Drawer, EmptyState, Field, Modal, Pill, Select, TextInput, BILL_META } from "../components/ui";
 import { I } from "../components/icons";
+import { downloadBillPdf, printBillReceipt } from "../lib/pdf";
 
 function EditBillModal({ bill, onClose }: { bill: Bill; onClose: () => void }) {
   const { updateBill, toast } = useApp();
@@ -104,16 +105,89 @@ function PayModal({ bill, onClose }: { bill: Bill; onClose: () => void }) {
   );
 }
 
+function PaymentEditorModal({ bill, onClose }: { bill: Bill; onClose: () => void }) {
+  const { updateBillPayments, toast } = useApp();
+  const [payments, setPayments] = useState<Payment[]>(bill.payments.map((payment) => ({ ...payment })));
+
+  const patchPayment = (index: number, patch: Partial<Payment>) => {
+    setPayments((current) => current.map((payment, i) => i === index ? { ...payment, ...patch } : payment));
+  };
+
+  const addPayment = () => {
+    const stamp = Date.now();
+    setPayments((current) => [...current, {
+      id: `PY-EDIT-${stamp}`,
+      amount: 0,
+      method: "Cash",
+      at: new Date().toISOString(),
+      ref: `MANUAL-${String(stamp).slice(-6)}`,
+    }]);
+  };
+
+  const save = () => {
+    if (payments.some((payment) => Number(payment.amount) <= 0)) {
+      toast("error", "Invalid payment amount", "Enter an amount greater than zero or remove the empty payment row.");
+      return;
+    }
+    updateBillPayments(bill.id, payments);
+    onClose();
+  };
+
+  return (
+    <Modal open onClose={onClose} title={`Edit payments · ${bill.code}`} sub="Super Admin, Admin and Doctor can correct the patient payment ledger"
+      footer={<><Btn variant="outline" onClick={onClose}>Cancel</Btn><Btn icon="check" onClick={save}>Save payment ledger</Btn></>}>
+      <div className="space-y-3 max-h-[60vh] overflow-y-auto scroll-slim pr-1">
+        {payments.map((payment, index) => (
+          <div key={payment.id} className="border border-line rounded-lg p-3 bg-line-soft/25">
+            <div className="flex items-center gap-2 mb-2.5">
+              <p className="micro text-ink-faint">Payment {index + 1} · {payment.ref}</p>
+              <button onClick={() => setPayments((current) => current.filter((_, i) => i !== index))} className="ml-auto text-danger-600 hover:text-danger-700" aria-label="Remove payment"><I name="trash" className="w-4 h-4" /></button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Paid amount"><TextInput type="number" min="0.01" step="0.01" value={payment.amount} onChange={(e) => patchPayment(index, { amount: Number(e.target.value) })} /></Field>
+              <Field label="Payment method"><Select value={payment.method} onChange={(e) => patchPayment(index, { method: e.target.value as Payment["method"] })}>
+                <option>Cash</option><option>Card</option><option>Wallet</option><option>Bank Transfer</option><option>Insurance</option>
+              </Select></Field>
+            </div>
+          </div>
+        ))}
+        {payments.length === 0 && <div className="rounded-lg border border-dashed border-line p-5 text-center text-[12px] text-ink-faint">No payments recorded. Add a payment to update this invoice.</div>}
+        <Btn size="sm" variant="outline" icon="plus" onClick={addPayment}>Add payment</Btn>
+      </div>
+    </Modal>
+  );
+}
+
 function BillDrawer({ bill, onClose }: { bill: Bill; onClose: () => void }) {
   const { s, submitClaim, toast, hasPermission } = useApp();
   const role = s.session?.role ?? "billing";
   const [showPay, setShowPay] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
+  const [showPaymentEditor, setShowPaymentEditor] = useState(false);
   const t = billTotals(bill);
   const patient = s.patients.find((p) => p.id === bill.patientId);
   const insurer = s.insurers.find((i) => i.id === patient?.insuranceProviderId);
   const meta = BILL_META[bill.status];
-  const canCollect = hasPermission("billing", "edit") && (role === "billing" || role === "admin" || role === "super" || role === "reception" || role === "patient");
+  const canCollect = hasPermission("billing", "edit") && (role === "billing" || role === "admin" || role === "super" || role === "doctor" || role === "reception" || role === "patient");
+  const canManagePayments = hasPermission("billing", "edit") && ["super", "admin", "doctor"].includes(role);
+
+  const saveReceiptPdf = async () => {
+    try {
+      await downloadBillPdf(s, bill.id);
+      toast("success", "Receipt PDF downloaded", `${bill.code} saved as a separate PDF.`);
+    } catch {
+      toast("error", "PDF download failed", "Please try again from this invoice.");
+    }
+  };
+
+  const printReceipt = () => {
+    try {
+      printBillReceipt(s, bill.id);
+      toast("success", "Print receipt opened", `${bill.code} is ready to print.`);
+    } catch {
+      toast("error", "Print window blocked", "Allow pop-ups in the browser and try again.");
+    }
+  };
 
   const kindIcon: Record<string, string> = { consultation: "stetho", medicine: "pill", lab: "flask", imaging: "scan", bed: "bed", service: "cross" };
 
@@ -187,6 +261,9 @@ function BillDrawer({ bill, onClose }: { bill: Bill; onClose: () => void }) {
           {role === "super" && (
             <Btn className="w-full" variant="dark" icon="edit" onClick={() => setShowEdit(true)}>Edit invoice details</Btn>
           )}
+          {canManagePayments && (
+            <Btn className="w-full" variant="outline" icon="edit" onClick={() => setShowPaymentEditor(true)}>Edit patient payments</Btn>
+          )}
           {t.balance > 0 && canCollect && (
             <Btn className="w-full" icon="wallet" onClick={() => setShowPay(true)}>
               {role === "patient" ? "Pay now online" : "Record payment"}
@@ -202,14 +279,16 @@ function BillDrawer({ bill, onClose }: { bill: Bill; onClose: () => void }) {
               <I name="clock" className="w-3.5 h-3.5" /> Claim under adjudication with {insurer?.name ?? "payer"}.
             </p>
           )}
-          <Btn variant="ghost" className="w-full" icon="printer" onClick={() => toast("success", "Receipt sent to print", `${bill.code} · ${patient ? fullName(patient) : ""}`)}>
-            Print receipt
-          </Btn>
+          <div className="grid grid-cols-2 gap-2">
+            <Btn variant="outline" className="w-full" icon="download" onClick={saveReceiptPdf}>Download PDF</Btn>
+            <Btn variant="ghost" className="w-full" icon="printer" onClick={printReceipt}>Print receipt</Btn>
+          </div>
         </div>
       </div>
 
       {showPay && <PayModal bill={bill} onClose={() => setShowPay(false)} />}
       {showEdit && <EditBillModal bill={bill} onClose={() => setShowEdit(false)} />}
+      {showPaymentEditor && <PaymentEditorModal bill={bill} onClose={() => setShowPaymentEditor(false)} />}
     </Drawer>
   );
 }

@@ -22,6 +22,7 @@ export interface AppState extends SeedData {
   profiles: Partial<Record<Role, ProfileOverride>>;
   passwordOverrides: Partial<Record<Role, string>>;
   rolePermissions: RolePermissions;
+  permissionSchemaVersion: number;
 }
 
 export interface Toast { id: number; kind: "success" | "error" | "info" | "warning"; title: string; desc?: string; }
@@ -67,6 +68,7 @@ interface AppCtx {
   setBedStatus: (bedId: string, status: Bed["status"]) => void;
   addProgressNote: (admissionId: string, text: string) => void;
   recordPayment: (billId: string, amount: number, method: Payment["method"]) => void;
+  updateBillPayments: (billId: string, payments: Payment[]) => void;
   submitClaim: (billId: string) => void;
   createBill: (patientId: string, items: BillItem[]) => void;
   updateBill: (billId: string, patch: Pick<Bill, "items" | "discount" | "taxRate" | "status" | "claimStatus">) => void;
@@ -98,6 +100,7 @@ const freshState = (): AppState => ({
   profiles: {},
   passwordOverrides: {},
   rolePermissions: makeDefaultRolePermissions(),
+  permissionSchemaVersion: 2,
 });
 
 const loadState = (): AppState => {
@@ -117,6 +120,10 @@ const loadState = (): AppState => {
             };
           });
         });
+        if ((parsed.permissionSchemaVersion ?? 0) < 2) {
+          state.rolePermissions.doctor.billing = { view: true, edit: true };
+        }
+        state.permissionSchemaVersion = 2;
         // rebrand: upgrade saved facility name unless the user set a custom one
         if (state.hospitalName === LEGACY_HOSPITAL) state.hospitalName = DEFAULT_HOSPITAL;
         return state;
@@ -835,6 +842,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [withMeta, toast]
   );
 
+  const updateBillPayments = useCallback(
+    (billId: string, payments: Payment[]) => {
+      setS((prev) => {
+        const bill = prev.bills.find((item) => item.id === billId);
+        if (!bill) return prev;
+        const cleanPayments = payments
+          .filter((payment) => Number(payment.amount) > 0)
+          .map((payment) => ({ ...payment, amount: Number(payment.amount) }));
+        const total = billTotals({ ...bill, payments: [] }).total;
+        const paid = cleanPayments.reduce((sum, payment) => sum + payment.amount, 0);
+        const status: Bill["status"] = paid >= total - 0.01 ? "paid" : paid > 0 ? "partial" : "unpaid";
+        return withMeta(
+          { ...prev, bills: prev.bills.map((item) => item.id === billId ? { ...item, payments: cleanPayments, status } : item) },
+          "Edited invoice payments",
+          `${bill.code} · ${cleanPayments.length} payment(s) · ${fmtMoney(paid)}`
+        );
+      });
+      toast("success", "Payment ledger updated", "Invoice paid amount, balance and status were recalculated.");
+    },
+    [toast, withMeta]
+  );
+
   const submitClaim = useCallback(
     (billId: string) => {
       setS((prev) => {
@@ -910,14 +939,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     markRead, markAllRead, registerPatient, updatePatientClinical, bookAppointment, cancelAppointment, checkIn,
     startConsult, saveVitals, updateConsult, completeConsult, sendPrescription, dispense,
     orderLab, advanceLab, saveLabResults, verifyLab, setImaging, createAdmission, assignBed,
-    discharge, setBedStatus, addProgressNote, recordPayment, submitClaim, createBill, updateBill,
+    discharge, setBedStatus, addProgressNote, recordPayment, updateBillPayments, submitClaim, createBill, updateBill,
     hasPermission, setRolePermission, applyPermissionPreset, resetRolePermissions,
     restock, adjustInventory, createPO, receivePO,
   }), [s, toasts, dismiss, toast, signIn, signOut, attemptLogin, updateProfile, changePassword, updatePatientContact, effectiveCredentials,
     reset, go, setBookPatient, setBranch, setHospitalName, markRead, markAllRead,
     registerPatient, updatePatientClinical, bookAppointment, cancelAppointment, checkIn, startConsult, saveVitals, updateConsult,
     completeConsult, sendPrescription, dispense, orderLab, advanceLab, saveLabResults, verifyLab, setImaging,
-    createAdmission, assignBed, discharge, setBedStatus, addProgressNote, recordPayment, submitClaim,
+    createAdmission, assignBed, discharge, setBedStatus, addProgressNote, recordPayment, updateBillPayments, submitClaim,
     createBill, updateBill, hasPermission, setRolePermission, applyPermissionPreset, resetRolePermissions,
     restock, adjustInventory, createPO, receivePO]);
 

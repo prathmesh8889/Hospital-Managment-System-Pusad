@@ -68,7 +68,7 @@ export const MODULE_ROLES: Record<ModuleId, Role[]> = {
   lab: ["super", "admin", "doctor", "lab", "radiology"],
   wards: ["super", "admin", "doctor", "nurse"],
   pharmacy: ["super", "admin", "pharmacist"],
-  billing: ["super", "admin", "reception", "billing", "patient"],
+  billing: ["super", "admin", "reception", "doctor", "billing", "patient"],
   inventory: ["super", "admin", "pharmacist"],
   reports: ["super", "admin", "billing", "doctor"],
   access: ["super"],
