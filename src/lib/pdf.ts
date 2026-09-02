@@ -153,7 +153,7 @@ export async function downloadPatientReportPdf(state: AppState, patientId: strin
   const patient = state.patients.find((item) => item.id === patientId);
   if (!patient) throw new Error("Patient not found");
   const doc = await createPdf();
-  addHeader(doc, state.hospitalName, "CONSOLIDATED PATIENT REPORT", patient.code);
+  addHeader(doc, state.hospitalName, "MEDICAL REPORT", patient.code);
   let y = 40;
 
   y = sectionTitle(doc, "Patient profile", y);
@@ -197,11 +197,8 @@ export async function downloadPatientReportPdf(state: AppState, patientId: strin
     y = detailRow(doc, `${labs.length + index + 1}. ${scan.code}`, `${scan.modality} ${scan.bodyPart} · ${scan.status.toUpperCase()} · ${scan.findings || "Findings pending"}`, y);
   });
 
-  const bills = state.bills.filter((item) => item.patientId === patientId);
-  const billed = bills.reduce((sum, bill) => sum + billTotals(bill).total, 0);
-  const paid = bills.reduce((sum, bill) => sum + billTotals(bill).paid, 0);
-  y = sectionTitle(doc, "Billing summary", y + 4);
-  y = detailRow(doc, "Invoices", `${bills.length} invoice(s) · Total ${money(billed)} · Paid ${money(paid)} · Balance ${money(Math.max(0, billed - paid))}`, y);
+  y = sectionTitle(doc, "Report scope", y + 4);
+  y = detailRow(doc, "Medical only", "This PDF contains clinical information only. Bills, payment receipts and prescription medicine charges are downloaded separately.", y);
 
   addFooter(doc);
   doc.save(`${cleanFileName(patient.code)}-${cleanFileName(fullName(patient))}-medical-report.pdf`);
